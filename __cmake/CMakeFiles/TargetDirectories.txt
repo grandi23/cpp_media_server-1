@@ -1,3 +1,0 @@
-/Users/shiwei05/Documents/code/cpp-code/cpp_media_server/__cmake/CMakeFiles/rebuild_cache.dir
-/Users/shiwei05/Documents/code/cpp-code/cpp_media_server/__cmake/CMakeFiles/edit_cache.dir
-/Users/shiwei05/Documents/code/cpp-code/cpp_media_server/__cmake/CMakeFiles/httpClientDemo.dir
