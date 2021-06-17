@@ -21,3 +21,6 @@
 
 .idea
 
+#cmake
+__cmake
+__cmake/*
