@@ -287,6 +287,7 @@ public:
 
 private:
     int do_init() {
+        long length = 1024;
         //Create the DH
         if ((pdh_ = DH_new()) == NULL) {
             log_errorf("DH_new error...");
@@ -318,7 +319,7 @@ private:
         }
         
         //Set the key length
-        DH_set_length(pdh_, 1024);
+        DH_set_length(pdh_, length);
         
         //Generate private and public key
         if (!DH_generate_key(pdh_)) {
@@ -434,7 +435,6 @@ public:
         uint8_t* p = (uint8_t*)c1;
 
         memcpy(c1_data_, c1, sizeof(c1_data_));
-        log_info_data((uint8_t*)c1_data_, sizeof(c1_data_), "c1 data");
 
         c1_time_ = read_4bytes(p);
         p += 4;
@@ -585,7 +585,6 @@ private:
 
         memcpy(digest_data_, p, sizeof(digest_data_));
         p += sizeof(digest_data_);
-        log_info_data((uint8_t*)digest_data_, sizeof(digest_data_), "digest data");
 
         digest_random1_size_ = 764 - 4 - real_offset - 32;
         log_infof("parse digest digest_random1_size_:%u", digest_random1_size_);
@@ -599,8 +598,9 @@ private:
 
     bool check_digest_valid(enum HANDSHAKE_SCHEMA schema) {
         size_t first_part_len = 0;
+        size_t second_part_len = 0;
         char c1_digest[32];
-        size_t digest_len = 0;
+        size_t digest_len = 32;
 
         hmac_sha256_handler hmac;
 
@@ -612,23 +612,23 @@ private:
 
         if (schema == SCHEMA0) {
             // time + ver + key part(764) + digest offset(4bytes) + rand0 part
-            first_part_len = 8 + 764 + 4 + digest_random0_size_;
+            first_part_len  = 8 + 764 + 4 + digest_random0_size_;
+            second_part_len = sizeof(c1_data_) - first_part_len - 32;
         } else if (schema == SCHEMA1) {
             // time + ver + digest offset(4bytes) + rand0 part
-            first_part_len = 8 + 4 + digest_random0_size_;
+            first_part_len  = 8 + 4 + digest_random0_size_;
+            second_part_len = sizeof(c1_data_) - first_part_len - 32;
         } else {
             log_errorf("unkown handshake schema:%d", (int)schema);
             return -1;
         }
         
-        log_info_data((uint8_t*)c1_data_, first_part_len, "first part");
         ret = hmac.update((uint8_t*)c1_data_, first_part_len);
         if (ret != 0) {
             log_errorf("hmac update error.");
             return ret;
         }
-        log_info_data((uint8_t*)c1_data_ + first_part_len + 32, digest_random1_size_, "second part");
-        ret = hmac.update((uint8_t*)c1_data_ + first_part_len + 32, digest_random1_size_);
+        ret = hmac.update((uint8_t*)c1_data_ + first_part_len + 32, second_part_len);
         if (ret != 0) {
             log_errorf("hmac update error.");
             return ret;
@@ -752,7 +752,6 @@ private:
             delete[] c1s1_joined_data;
             return ret;
         }
-        log_info_data((uint8_t*)c1_digest, 32, "c1 digest");
 
         delete[] c1s1_joined_data;
         return ret;
