@@ -30,7 +30,7 @@ public:
 
 public:
     int append_data(const char* input_data, size_t input_len) {
-        if (data_len_ + (int)input_len > buffer_size_) {
+        if ((size_t)data_len_ + input_len > buffer_size_) {
             int new_len = ((data_len_ + (int)input_len + EXTRA_LEN)/4 + 1)*4;
             char* new_buffer_ = new char[new_len];
 
@@ -53,7 +53,7 @@ public:
     }
 
     int consume_data(size_t consume_len) {
-        if (consume_len > data_len_) {
+        if (consume_len > (size_t)data_len_) {
             return -1;
         }
 

@@ -50,6 +50,52 @@ inline void rtmp_random_generate(char* bytes, int size)
         bytes[i] = 0x0f + (random() % (256 - 0x0f - 0x0f));
     }
 }
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+static void DH_get0_key(const DH *dh, const BIGNUM **pub_key, const BIGNUM **priv_key)
+{
+    if (pub_key != NULL) {
+        *pub_key = dh->pub_key;
+    }
+    if (priv_key != NULL) {
+        *priv_key = dh->priv_key;
+    }
+}
+
+static int DH_set0_pqg(DH *dh, BIGNUM *p, BIGNUM *q, BIGNUM *g)
+{
+    /* If the fields p and g in d are NULL, the corresponding input
+     * parameters MUST be non-NULL.  q may remain NULL.
+     */
+    if ((dh->p == NULL && p == NULL)
+        || (dh->g == NULL && g == NULL))
+        return 0;
+    
+    if (p != NULL) {
+        BN_free(dh->p);
+        dh->p = p;
+    }
+    if (q != NULL) {
+        BN_free(dh->q);
+        dh->q = q;
+    }
+    if (g != NULL) {
+        BN_free(dh->g);
+        dh->g = g;
+    }
+    
+    if (q != NULL) {
+        dh->length = BN_num_bits(q);
+    }
+    
+    return 1;
+}
+
+static int DH_set_length(DH *dh, long length)
+{
+    dh->length = length;
+    return 1;
+}
+#endif
 
 inline int hmac_sha256(const char* key, int key_size, const char* data, int data_size, char* digest)
 {   
@@ -58,6 +104,25 @@ inline int hmac_sha256(const char* key, int key_size, const char* data, int data
     uint8_t* temp_key = (uint8_t*)key;
     uint8_t* temp_digest = (uint8_t*)digest;
 
+#if OPENSSL_VERSION_NUMBER < 0x1010000fL
+    HMAC_CTX ctx;
+
+    HMAC_CTX_init(&ctx);
+
+    if (HMAC_Init_ex(&ctx, temp_key, key_size, EVP_sha256(), NULL) < 0) {
+        return -1;
+    }
+
+    if (HMAC_Update(&ctx, (uint8_t*)data, data_size) < 0) {
+        return -1;
+    }
+    
+    if (HMAC_Final(&ctx, temp_digest, &digest_size) < 0) {
+        return -1;
+    }
+
+    HMAC_CTX_cleanup(&ctx);
+#else
     HMAC_CTX *ctx = HMAC_CTX_new();
     if (ctx == nullptr) {
         log_errorf("hmac new error...");
@@ -79,7 +144,7 @@ inline int hmac_sha256(const char* key, int key_size, const char* data, int data
         return -1;
     }
     HMAC_CTX_free(ctx);
-    
+#endif
     if (digest_size != 32) {
         return -1;
     }
@@ -91,38 +156,68 @@ class hmac_sha256_handler
 {
 public:
     hmac_sha256_handler() {
+        #if OPENSSL_VERSION_NUMBER < 0x1010000fL
+        HMAC_CTX_init(&ctx_);
+        #else
         ctx_ = HMAC_CTX_new();
+        #endif
     }
     ~hmac_sha256_handler() {
+        #if OPENSSL_VERSION_NUMBER < 0x1010000fL
+        HMAC_CTX_cleanup(&ctx_);
+        #else
         if (ctx_) {
             HMAC_CTX_free(ctx_);
         }
+        #endif
     }
 
 public:
     int init(uint8_t* key, int key_len) {
+        #if OPENSSL_VERSION_NUMBER < 0x1010000fL
+        if (HMAC_Init_ex(&ctx_, key, key_len, EVP_sha256(), NULL) < 0) {
+            return -1;
+        }
+        #else
         if (HMAC_Init_ex(ctx_, key, key_len, EVP_sha256(), NULL) < 0) {
             return -1;
         }
+        #endif
         return 0;
     }
 
     int update(uint8_t* data, size_t data_len) {
+        #if OPENSSL_VERSION_NUMBER < 0x1010000fL
+        if (HMAC_Update(&ctx_, data, data_len) < 0) {
+            return -1;
+        }
+        #else
         if (HMAC_Update(ctx_, data, data_len) < 0) {
             return -1;
         }
+        #endif
         return 0;
     }
 
     int get_final(uint8_t* digest, size_t& digest_size) {
+        #if OPENSSL_VERSION_NUMBER < 0x1010000fL
+        if (HMAC_Final(&ctx_, digest, (unsigned int*)&digest_size) < 0) {
+            return -1;
+        }
+        #else
         if (HMAC_Final(ctx_, digest, (unsigned int*)&digest_size) < 0) {
             return -1;
         }
+        #endif
         return 0;
     }
 
 private:
+#if OPENSSL_VERSION_NUMBER < 0x1010000fL
+    HMAC_CTX ctx_;
+#else
     HMAC_CTX *ctx_ = nullptr;
+#endif
 };
 
 class DH_gen_key
@@ -173,11 +268,11 @@ public:
 
         int32_t key_size = DH_compute_key((unsigned char*)skey, ppk, pdh_);
         
-        if (key_size < ppkey_size) {
+        if (key_size < (int32_t)ppkey_size) {
             log_warnf("shared key size=%d, ppk_size=%d", key_size, ppkey_size);
         }
         
-        if (key_size < 0 || key_size > skey_size) {
+        if (key_size < 0 || key_size > (int32_t)skey_size) {
             ret = -1;
         } else {
             skey_size = key_size;

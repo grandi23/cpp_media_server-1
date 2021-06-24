@@ -2,6 +2,7 @@
 #define LOGGER_HPP
 #include <string>
 #include <stdint.h>
+#include <stdarg.h>
 
 #define LOGGER_BUFFER_SIZE (8*1024)
 

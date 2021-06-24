@@ -68,9 +68,9 @@ protected://tcp_session_callbackI
         log_infof("writen return code:%d, sent len:%lu, buffer len:%d",
             ret_code, sent_size, send_data_.data_len_);
 
-        assert(send_data_.data_len_ >= sent_size);
+        assert(send_data_.data_len_ >= (int)sent_size);
 
-        if (send_data_.data_len_ >= sent_size) {
+        if (send_data_.data_len_ >= (int)sent_size) {
             send_data_.data_len_ -= sent_size;
             send_data_.start_    += sent_size;
         }
