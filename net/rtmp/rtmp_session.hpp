@@ -29,6 +29,7 @@ public:
 
 public:
     void try_read() {
+        log_infof("try to read....");
         session_ptr_->async_read();
     }
 
@@ -50,7 +51,8 @@ protected://implement tcp_session_callbackI
             }
             if (send_buffer_.data_len() == 0) {
                 session_phase_ = handshake_c2_phase;
-                log_infof("rtmp s0s1s2 is sent.");
+                try_read();
+                log_infof("rtmp s0s1s2 is sent, this size:%lu", sent_size);
                 return;
             }
 
@@ -59,11 +61,12 @@ protected://implement tcp_session_callbackI
     }
 
     virtual void on_read(int ret_code, const char* data, size_t data_size) override {
+        log_infof("on read callback return code:%d, data_size:%lu", ret_code, data_size);
         if (ret_code != 0) {
             close();
             return;
         }
-
+        
         recv_buffer_.append_data(data, data_size);
 
         handle_request();
@@ -151,7 +154,8 @@ private:
             log_infof("rtmp session phase become c0c1.");
 
             send_s0s1s2();
-        } else if (session_phase_ == handshake_c0c1_phase) {
+        } else if (session_phase_ == handshake_c2_phase) {
+            log_infof("start hand c2...");
             ret = handle_c2();
             if (ret < 0) {
                 close();
@@ -160,6 +164,7 @@ private:
             recv_buffer_.reset();//be ready to receive rtmp connect;
             log_infof("rtmp session phase become rtmp connect.");
             session_phase_ = connect_phase;
+            try_read();
         }
     }
 

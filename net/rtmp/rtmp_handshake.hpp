@@ -249,10 +249,12 @@ public:
                 DH_get0_key(pdh_, &pub_key, NULL);
                 int32_t key_size = BN_num_bytes(pub_key);
                 if (key_size != 128) {
-                    log_warnf("regenerate 128bytes key, current=%dbytes", key_size);
+                    log_warnf("regenerate 128 bytes key, current=%d bytes", key_size);
                     continue;
                 }
+                log_warnf("get right key size:%d", key_size);
             }
+            break;
         }
         return 0;
     }
@@ -288,6 +290,8 @@ public:
 private:
     int do_init() {
         long length = 1024;
+
+        close();
         //Create the DH
         if ((pdh_ = DH_new()) == NULL) {
             log_errorf("DH_new error...");
@@ -443,20 +447,21 @@ public:
 
         log_infof("time:%u, version:0x%08x", c1_time_, c1_version_);
 
-        ret = try_schema0(p);
+        //schema1 first which make ffmpeg happy
+        ret = try_schema1(p);
         if (ret != 0) {
             return ret;
         }
 
-        bool is_valid = check_digest_valid(SCHEMA0);
+        bool is_valid = check_digest_valid(SCHEMA1);
         if (!is_valid) {
             log_errorf("check schema0 digest valid error...");
             log_infof("try rtmp handshae schema1...");
-            ret = try_schema1(p);
+            ret = try_schema0(p);
             if (ret != 0) {
                 return ret;
             }
-            is_valid = check_digest_valid(SCHEMA1);
+            is_valid = check_digest_valid(SCHEMA0);
             if (!is_valid) {
                 log_errorf("check schema1 digest valid error...");
                 return -1;
@@ -916,6 +921,7 @@ public:
         int ret = c1s1_.make_s1((char*)s1_body_);
         
         if (ret != 0) {
+            s1_len = 0;
             log_errorf("make s1 error:%d", ret);
             return nullptr;
         }

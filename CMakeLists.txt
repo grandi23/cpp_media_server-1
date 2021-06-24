@@ -25,7 +25,7 @@ include_directories(./net
                     /usr/local/include/)
 
 # set lib path
-link_directories(${CMAKE_BINARY_DIR}/output/lib /usr/local/lib)
+link_directories(${CMAKE_BINARY_DIR}/output/lib /usr/local/lib64 /usr/local/lib)
 
 add_executable(echo_demo net/tcp/echo_demo.cpp utils/logger.cpp)
 IF (APPLE)
