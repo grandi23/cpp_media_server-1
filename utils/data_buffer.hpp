@@ -8,31 +8,10 @@
 
 #define EXTRA_LEN (10*1024)
 
-inline int string_split(const std::string& input_str, const std::string& split_str, std::vector<std::string>& output_vec) {
-    if (input_str.length() == 0) {
-        return 0;
-    }
-    
-    std::string tempString(input_str);
-    do {
-
-        size_t pos = tempString.find(split_str);
-        if (pos == tempString.npos) {
-            output_vec.push_back(tempString);
-            break;
-        }
-        std::string seg_str = tempString.substr(0, pos);
-        tempString = tempString.substr(pos+split_str.size());
-        output_vec.push_back(seg_str);
-    } while(tempString.size() > 0);
-
-    return output_vec.size();
-}
-
-class DataBuffer
+class data_buffer
 {
 public:
-    DataBuffer(size_t data_size = EXTRA_LEN) {
+    data_buffer(size_t data_size = EXTRA_LEN) {
         buffer_      = new char[data_size];
         buffer_size_ = data_size;
         start_       = 0;
@@ -42,7 +21,7 @@ public:
         memset(buffer_, 0, data_size);
     }
 
-    ~DataBuffer() {
+    ~data_buffer() {
         if (buffer_)
         {
             delete[] buffer_;
@@ -50,7 +29,7 @@ public:
     }
 
 public:
-    int append_data(char* input_data, size_t input_len) {
+    int append_data(const char* input_data, size_t input_len) {
         if (data_len_ + (int)input_len > buffer_size_) {
             int new_len = ((data_len_ + (int)input_len + EXTRA_LEN)/4 + 1)*4;
             char* new_buffer_ = new char[new_len];
@@ -70,6 +49,31 @@ public:
         data_len_ += (int)input_len;
         end_ += (int)input_len;
 
+        return data_len_;
+    }
+
+    int consume_data(size_t consume_len) {
+        if (consume_len > data_len_) {
+            return -1;
+        }
+
+        start_    += consume_len;
+        data_len_ -= consume_len;
+
+        return 0;
+    }
+
+    void reset() {
+        start_    = 0;
+        end_      = 0;
+        data_len_ = 0;
+    }
+
+    char* data() {
+        return buffer_ + start_;
+    }
+
+    size_t data_len() {
         return data_len_;
     }
 

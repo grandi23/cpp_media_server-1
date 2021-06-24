@@ -17,15 +17,33 @@ set(CMAKE_PREFIX_PATH "${CMAKE_BINARY_DIR}/output/lib/pkgconfig")
 
 # set include path
 include_directories(./net
+                    ./net/http
+                    ./net/rtmp
+                    ./net/tcp
+                    ./utils
                     ${CMAKE_BINARY_DIR}/output/include
                     /usr/local/include/)
 
 # set lib path
 link_directories(${CMAKE_BINARY_DIR}/output/lib /usr/local/lib)
 
-add_executable(httpClientDemo net/httpClientDemo.cpp)
+add_executable(echo_demo net/tcp/echo_demo.cpp utils/logger.cpp)
 IF (APPLE)
-target_link_libraries(httpClientDemo dl z m ssl crypto boost_thread boost_system)
+target_link_libraries(echo_demo dl z m boost_thread boost_system)
 ELSEIF (UNIX)
-target_link_libraries(httpClientDemo rt dl z m ssl crypto boost_thread boost_system)
+target_link_libraries(echo_demo rt dl z m boost_thread boost_system)
+ENDIF ()
+
+add_executable(http_server_demo net/http/http_server_demo.cpp utils/logger.cpp)
+IF (APPLE)
+target_link_libraries(http_server_demo dl z m boost_thread boost_system)
+ELSEIF (UNIX)
+target_link_libraries(http_server_demo rt dl z m boost_thread boost_system)
+ENDIF ()
+
+add_executable(rtmp_server_demo net/rtmp/rtmp_server_demo.cpp utils/logger.cpp)
+IF (APPLE)
+target_link_libraries(rtmp_server_demo dl z m ssl crypto boost_thread boost_system)
+ELSEIF (UNIX)
+target_link_libraries(rtmp_server_demo rt dl z m ssl crypto boost_thread boost_system)
 ENDIF ()
