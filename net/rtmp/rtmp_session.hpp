@@ -5,8 +5,12 @@
 #include "logger.hpp"
 #include "rtmp_pub.hpp"
 #include "rtmp_handshake.hpp"
+#include "chunk_stream.hpp"
+#include "rtmp_session_interface.hpp"
+#include "amf/afm0.hpp"
 #include <memory>
 #include <stdint.h>
+#include <unordered_map>
 
 
 class rtmp_server_callbackI
@@ -15,7 +19,7 @@ public:
     virtual void on_close(boost::asio::ip::tcp::endpoint endpoint) = 0;
 };
 
-class rtmp_session : public tcp_session_callbackI
+class rtmp_session : public tcp_session_callbackI, public rtmp_session_interface
 {
 public:
     rtmp_session(boost::asio::ip::tcp::socket socket, rtmp_server_callbackI* callback) : callback_(callback) {
@@ -27,12 +31,17 @@ public:
 
     }
 
-public:
-    void try_read() {
+public://implement rtmp_session_interface
+    virtual void try_read() override {
         log_infof("try to read....");
         session_ptr_->async_read();
     }
 
+    virtual data_buffer* get_recv_buffer() override {
+        return &recv_buffer_;
+    }
+
+public:
     void close() {
         log_infof("rtmp session close....");
         auto ep = session_ptr_->get_remote_endpoint();
@@ -77,7 +86,7 @@ private:
         const size_t c0_size = 1;
         const size_t c1_size = 1536;
 
-        if (recv_buffer_.data_len() < (c0_size + c1_size)) {
+        if (!recv_buffer_.require(c0_size + c1_size)) {
             try_read();
             return RTMP_NEED_READ_MORE;
         }
@@ -87,11 +96,109 @@ private:
 
     int handle_c2() {
         const size_t c2_size = 1536;
-        if (recv_buffer_.data_len() < c2_size) {
+        if (!recv_buffer_.require(c2_size)) {
             try_read();
             return RTMP_NEED_READ_MORE;
         }
         //TODO_JOB: handle c2 data.
+        recv_buffer_.consume_data(c2_size);
+
+        return RTMP_OK;
+    }
+
+    int read_fmt_csid() {
+        uint8_t* p = nullptr;
+
+        if (!fmt_ready_) {
+            csid_ready_ = false;
+            if (recv_buffer_.require(1)) {
+                p = (uint8_t*)recv_buffer_.data();
+                log_infof("chunk 1st byte:0x%02x", *p);
+                fmt_  = ((*p) >> 6) & 0x3;
+                csid_ = (*p) & 0x3f;
+                fmt_ready_ = true;
+                recv_buffer_.consume_data(1);
+            } else {
+                try_read();
+                return RTMP_NEED_READ_MORE;
+            }
+        }
+        log_infof("rtmp chunk fmt:%d, csid:%d", fmt_, csid_);
+
+        if (csid_ > 1) {//1bytes basic header
+            csid_ready_ = true;
+        } else if (csid_ == 0) {
+            if (recv_buffer_.require(1)) {//need 1 byte
+                p = (uint8_t*)recv_buffer_.data();
+                recv_buffer_.consume_data(1);
+                csid_ = 64 + *p;
+                csid_ready_ = true;
+            } else {
+                try_read();
+                return RTMP_NEED_READ_MORE;
+            }
+        } else if (csid_ == 1) {
+            if (recv_buffer_.require(2)) {//need 2 bytes
+                p = (uint8_t*)recv_buffer_.data();
+                recv_buffer_.consume_data(2);
+                csid_ = 64;
+                csid_ += *p++;
+                csid_ += *p;
+                csid_ready_ = true;
+            } else {
+                try_read();
+                return RTMP_NEED_READ_MORE;
+            }
+        } else {
+            assert(0);
+            return -1;
+        }
+        return RTMP_OK;
+    }
+
+    int read_chunk_stream(CHUNK_STREAM_PTR& cs_ptr) {
+        int ret;
+
+        ret = read_fmt_csid();
+        if (ret != 0) {
+            return ret;
+        }
+
+        auto iter = cs_map_.find(csid_);
+        if (iter == cs_map_.end()) {
+            cs_ptr = std::make_shared<chunk_stream>(this, fmt_, csid_);
+            cs_map_.insert(std::make_pair(csid_, cs_ptr));
+        } else {
+            cs_ptr =iter->second;
+        }
+
+        ret = cs_ptr->read_message_header();
+        if (ret < RTMP_OK) {
+            close();
+            return ret;
+        } else if (ret == RTMP_NEED_READ_MORE) {
+            return ret;
+        } else {
+            log_infof("read message header ok");
+            cs_ptr->dump_header();
+
+            ret = cs_ptr->read_message_payload();
+            if (ret == RTMP_OK) {
+                cs_ptr->dump_payload();
+            }
+        }
+
+        return ret;
+    }
+
+    int handle_rtmp_connect() {
+        CHUNK_STREAM_PTR cs_ptr;
+        int ret;
+
+        ret = read_chunk_stream(cs_ptr);
+        if (ret < RTMP_OK) {
+            return ret;
+        }
 
         return RTMP_OK;
     }
@@ -155,16 +262,25 @@ private:
 
             send_s0s1s2();
         } else if (session_phase_ == handshake_c2_phase) {
-            log_infof("start hand c2...");
+            log_infof("start handle c2...");
             ret = handle_c2();
             if (ret < 0) {
                 close();
                 return;
             }
-            recv_buffer_.reset();//be ready to receive rtmp connect;
+
+            fmt_ready_  = false;//be ready to receive basic_header in chuch stream
+            csid_ready_ = false;//be ready to receive basic_header in chuch stream
             log_infof("rtmp session phase become rtmp connect.");
             session_phase_ = connect_phase;
             try_read();
+        } else if (session_phase_ == connect_phase) {
+            log_infof("start handle connect...");
+            ret = handle_rtmp_connect();
+            if (ret < 0) {
+                close();
+                return;
+            }
         }
     }
 
@@ -177,6 +293,13 @@ private:
     data_buffer recv_buffer_;
     data_buffer send_buffer_;
     rtmp_handshake hs_;
+
+private:
+    bool fmt_ready_  = false;
+    bool csid_ready_ = false;
+    uint8_t fmt_  = 0;
+    uint8_t csid_ = 0;
+    std::unordered_map<uint8_t, CHUNK_STREAM_PTR> cs_map_;
 };
 
 #endif

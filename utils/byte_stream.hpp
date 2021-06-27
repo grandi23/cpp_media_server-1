@@ -3,6 +3,49 @@
 #include <stdint.h>
 #include <stddef.h>
 
+/*
+union av_intfloat32 {
+    uint32_t i;
+    float    f;
+};
+*/
+
+union av_intfloat64 {
+    uint64_t i;
+    double   f;
+};
+/*
+static uint32_t av_float2int(float f)
+{
+    union av_intfloat32 v;
+    v.f = f;
+    return v.i;
+}
+*/
+
+static double av_int2double(uint64_t i)
+{
+    union av_intfloat64 v;
+    v.i = i;
+    return v.f;
+}
+
+inline uint64_t read_8bytes(const uint8_t* data) {
+    uint64_t value = 0;
+    uint8_t* output = (uint8_t*)&value;
+
+    output[7] = *data++;
+    output[6] = *data++;
+    output[5] = *data++;
+    output[4] = *data++;
+    output[3] = *data++;
+    output[2] = *data++;
+    output[1] = *data++;
+    output[0] = *data++;
+
+    return value;
+}
+
 inline uint32_t read_4bytes(const uint8_t* data) {
     uint32_t value = 0;
     uint8_t* output = (uint8_t*)&value;

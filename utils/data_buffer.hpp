@@ -30,22 +30,33 @@ public:
 
 public:
     int append_data(const char* input_data, size_t input_len) {
-        if ((size_t)data_len_ + input_len > buffer_size_) {
-            int new_len = ((data_len_ + (int)input_len + EXTRA_LEN)/4 + 1)*4;
-            char* new_buffer_ = new char[new_len];
+        if ((size_t)end_ + input_len > buffer_size_) {
+            if (data_len_ + input_len >= buffer_size_) {
+                int new_len = data_len_ + (int)input_len + EXTRA_LEN;
+                char* new_buffer_ = new char[new_len];
 
-            memcpy(new_buffer_, buffer_, data_len_);
-            memcpy(new_buffer_ + data_len_, input_data, input_len);
-            free(buffer_);
-            buffer_ = new_buffer_;
+                memcpy(new_buffer_, buffer_ + start_, data_len_);
+                memcpy(new_buffer_ + data_len_, input_data, input_len);
+                delete[] buffer_;
+                buffer_      = new_buffer_;
+                buffer_size_ = new_len;
+                data_len_    += input_len;
 
-            buffer_size_ = new_len;
-            data_len_ += (int)input_len;
-            end_ += (int)input_len;
+                start_     = 0;
+                end_       = data_len_;
+                return data_len_;
+            }
+
+            memcpy(buffer_, buffer_ + start_, data_len_);
+            memcpy(buffer_ + data_len_, input_data, input_len);
+            
+            data_len_ += input_len;
+            start_     = 0;
+            end_       = data_len_;
             return data_len_;
         }
 
-        memcpy(buffer_ + data_len_, input_data, input_len);
+        memcpy(buffer_ + end_, input_data, input_len);
         data_len_ += (int)input_len;
         end_ += (int)input_len;
 
@@ -75,6 +86,13 @@ public:
 
     size_t data_len() {
         return data_len_;
+    }
+
+    bool require(size_t len) {
+        if ((int)len <= data_len_) {
+            return true;
+        }
+        return false;
     }
 
 public:

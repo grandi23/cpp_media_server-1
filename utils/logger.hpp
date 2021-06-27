@@ -63,7 +63,7 @@ inline void snprintbuffer(char* buffer, size_t size, const char* fmt, ...) {
         Logger::get_instance()->logf("ERROR", buffer, __FILE__, __LINE__); \
     }
 
-#define log_infof(...) \
+#define log_infof(...)                                                     \
     if (Logger::get_instance()->get_level() <= LOGGER_INFO_LEVEL)          \
     {                                                                      \
         char* buffer = Logger::get_instance()->get_buffer();               \
