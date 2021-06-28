@@ -62,7 +62,7 @@ public:
             {
                 log_infof("amf type: object, count:%lu", amf_obj_.size());
                 for (auto iter : amf_obj_) {
-                    log_infof("object key:%s", iter.first);
+                    log_infof("object key:%s", iter.first.c_str());
                     iter.second->dump_amf();
                 }
                 break;
@@ -86,7 +86,7 @@ public:
             {
                 log_infof("amf type: ecma array, count:%lu", amf_obj_.size());
                 for (auto iter : amf_obj_) {
-                    log_infof("object key:%s", iter.first);
+                    log_infof("object key:%s", iter.first.c_str());
                     iter.second->dump_amf();
                 }
                 break;
