@@ -16,6 +16,7 @@ public:
         session_ = session;
         fmt_     = fmt;
         csid_    = csid;
+        log_infof("chunk_stream construct fmt:%d, csid:%d", fmt_, csid_);
     }
     ~chunk_stream()
     {
@@ -30,6 +31,7 @@ public:
         uint8_t* p;
         bool is_first_chunk = (chunk_data_.data_len() == 0);
 
+        log_infof("read message header fmt:%d, csid:%d", fmt_, csid_);
         if (fmt_ > 3) {
             log_errorf("fmt is invalid:%d", fmt_);
             return -1;
@@ -116,7 +118,8 @@ public:
             return RTMP_NEED_READ_MORE;
         }
 
-        chunk_data_.append_data(buffer_p->data(), buffer_p->data_len());
+        chunk_data_.append_data(buffer_p->data(), msg_len_);
+        log_infof("chunck message len:%u, buffer data len:%lu", msg_len_, buffer_p->data_len());
         buffer_p->consume_data(buffer_p->data_len());
 
         return RTMP_OK;
@@ -128,7 +131,10 @@ public:
     }
 
     void dump_payload() {
-        log_info_data((uint8_t*)chunk_data_.data(), chunk_data_.data_len(), "chunk stream payload");
+        char desc[128];
+
+        snprintf(desc, sizeof(desc), "chunk stream payload:%lu", chunk_data_.data_len());
+        log_info_data((uint8_t*)chunk_data_.data(), chunk_data_.data_len(), desc);
     }
 
 public:

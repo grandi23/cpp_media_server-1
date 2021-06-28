@@ -57,6 +57,7 @@ public:
         auto self(shared_from_this());
         try
         {
+            memset(buffer_, 0, buffer_size_);
             socket_.async_read_some(boost::asio::buffer(buffer_, buffer_size_),
                 [self](boost::system::error_code ec, size_t read_length) {
                     if (!ec) {
@@ -70,7 +71,6 @@ public:
         {
             std::cerr << e.what() << '\n';
         }
-        
 
         return;
     }

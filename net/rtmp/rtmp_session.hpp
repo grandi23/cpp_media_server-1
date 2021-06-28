@@ -70,11 +70,13 @@ protected://implement tcp_session_callbackI
     }
 
     virtual void on_read(int ret_code, const char* data, size_t data_size) override {
-        log_infof("on read callback return code:%d, data_size:%lu", ret_code, data_size);
+        log_infof("on read callback return code:%d, data_size:%lu, recv buffer size:%lu",
+            ret_code, data_size, recv_buffer_.data_len());
         if (ret_code != 0) {
             close();
             return;
         }
+        log_info_data((uint8_t*)data, data_size, "recv data");
         
         recv_buffer_.append_data(data, data_size);
 
@@ -101,7 +103,8 @@ private:
             return RTMP_NEED_READ_MORE;
         }
         //TODO_JOB: handle c2 data.
-        recv_buffer_.consume_data(c2_size);
+        recv_buffer_.reset();
+        //recv_buffer_.consume_data(c2_size);
 
         return RTMP_OK;
     }
@@ -183,9 +186,10 @@ private:
             cs_ptr->dump_header();
 
             ret = cs_ptr->read_message_payload();
-            if (ret == RTMP_OK) {
-                cs_ptr->dump_payload();
+            if (ret != RTMP_OK) {
+                return ret;
             }
+            cs_ptr->dump_payload();
         }
 
         return ret;
@@ -198,6 +202,20 @@ private:
         ret = read_chunk_stream(cs_ptr);
         if (ret < RTMP_OK) {
             return ret;
+        }
+        if ((cs_ptr->type_id_ != RTMP_COMMAND_MESSAGES_AMF0) && (cs_ptr->type_id_ != RTMP_COMMAND_MESSAGES_AMF3)) {
+            log_errorf("unkown typeid:%d in rtmp connect phase", cs_ptr->type_id_);
+            return -1;
+        }
+
+        uint8_t* data = (uint8_t*)cs_ptr->chunk_data_.data();
+        int len = (int)cs_ptr->chunk_data_.data_len();
+
+        while (len > 0) {
+            AMF_ITERM amf_item;
+            AMF_Decoder::decode(data, len, amf_item);
+
+            amf_item.dump_amf();
         }
 
         return RTMP_OK;
@@ -255,6 +273,8 @@ private:
             if (ret < 0) {
                 close();
                 return;
+            } else if (ret == RTMP_NEED_READ_MORE) {
+                return;
             }
             recv_buffer_.reset();//be ready to receive c2;
             session_phase_ = handshake_c0c1_phase;
@@ -267,11 +287,13 @@ private:
             if (ret < 0) {
                 close();
                 return;
+            } else if (ret == RTMP_NEED_READ_MORE) {
+                return;
             }
 
             fmt_ready_  = false;//be ready to receive basic_header in chuch stream
             csid_ready_ = false;//be ready to receive basic_header in chuch stream
-            log_infof("rtmp session phase become rtmp connect.");
+            log_infof("rtmp session phase become rtmp connect, buffer len:%lu", recv_buffer_.data_len());
             session_phase_ = connect_phase;
             try_read();
         } else if (session_phase_ == connect_phase) {

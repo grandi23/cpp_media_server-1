@@ -12,4 +12,7 @@ enum RTMP_SESSION_PHASE
     connect_phase
 };
 
+#define RTMP_COMMAND_MESSAGES_AMF3 17
+#define RTMP_COMMAND_MESSAGES_AMF0 20
+
 #endif //RTMP_PUB_HPP

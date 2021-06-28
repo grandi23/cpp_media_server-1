@@ -1,12 +1,13 @@
 #ifndef DATA_BUFFER_H
 #define DATA_BUFFER_H
+#include "logger.hpp"
 #include <stdint.h>
 #include <stddef.h>
 #include <string.h>
 #include <string>
 #include <vector>
 
-#define EXTRA_LEN (10*1024)
+#define EXTRA_LEN (100*1024)
 
 class data_buffer
 {
@@ -31,6 +32,8 @@ public:
 public:
     int append_data(const char* input_data, size_t input_len) {
         if ((size_t)end_ + input_len > buffer_size_) {
+            log_infof("it may be over, end:%d, input len:%lu, buffer size:%lu",
+                end_, input_len, buffer_size_)
             if (data_len_ + input_len >= buffer_size_) {
                 int new_len = data_len_ + (int)input_len + EXTRA_LEN;
                 char* new_buffer_ = new char[new_len];
@@ -60,6 +63,7 @@ public:
         data_len_ += (int)input_len;
         end_ += (int)input_len;
 
+        log_infof("after append end:%d, data len:%d", end_, data_len_);
         return data_len_;
     }
 

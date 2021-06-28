@@ -279,6 +279,7 @@ public:
                 break;
             }
             std::string key((char*)data, key_len);
+            log_infof("amf key len:%d, key:%s", key_len, key.c_str());
             data += key_len;
             len -= key_len;
 
@@ -290,6 +291,7 @@ public:
             if (ret != 0) {
                 return ret;
             }
+            amf_item->dump_amf();
             amf_obj.insert(std::make_pair(key, amf_item));
 
         }
