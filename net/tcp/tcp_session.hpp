@@ -1,5 +1,6 @@
 #ifndef TCP_SERVER_BASE_H
 #define TCP_SERVER_BASE_H
+#include "logger.hpp"
 #include <memory>
 #include <string>
 #include <stdint.h>
@@ -57,7 +58,6 @@ public:
         auto self(shared_from_this());
         try
         {
-            memset(buffer_, 0, buffer_size_);
             socket_.async_read_some(boost::asio::buffer(buffer_, buffer_size_),
                 [self](boost::system::error_code ec, size_t read_length) {
                     if (!ec) {

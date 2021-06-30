@@ -30,6 +30,16 @@ static double av_int2double(uint64_t i)
     return v.f;
 }
 
+/**
+ * Reinterpret a double as a 64-bit integer.
+ */
+static uint64_t av_double2int(double f)
+{
+    union av_intfloat64 v;
+    v.f = f;
+    return v.i;
+}
+
 inline uint64_t read_8bytes(const uint8_t* data) {
     uint64_t value = 0;
     uint8_t* output = (uint8_t*)&value;
@@ -79,6 +89,20 @@ inline uint16_t read_2bytes(const uint8_t* data) {
     return value;
 }
 
+inline void write_8bytes(uint8_t* data, uint64_t value) {
+    uint8_t* p = data;
+    uint8_t* pp = (uint8_t*)&value;
+
+    *p++ = pp[7];
+    *p++ = pp[6];
+    *p++ = pp[5];
+    *p++ = pp[4];
+    *p++ = pp[3];
+    *p++ = pp[2];
+    *p++ = pp[1];
+    *p++ = pp[0];
+}
+
 inline void write_4bytes(uint8_t* data, uint32_t value) {
     uint8_t* p = data;
     uint8_t* pp = (uint8_t*)&value;
@@ -87,6 +111,16 @@ inline void write_4bytes(uint8_t* data, uint32_t value) {
     *p++ = pp[2];
     *p++ = pp[1];
     *p++ = pp[0];
+}
+
+inline void write_4bytes_be(uint8_t* data, uint32_t value) {
+    uint8_t* p = data;
+    uint8_t* pp = (uint8_t*)&value;
+
+    *p++ = pp[0];
+    *p++ = pp[1];
+    *p++ = pp[2];
+    *p++ = pp[3];
 }
 
 inline void write_3bytes(uint8_t* data, uint32_t value) {

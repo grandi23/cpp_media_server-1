@@ -31,6 +31,10 @@ public:
 
 public:
     int append_data(const char* input_data, size_t input_len) {
+        if ((input_data == nullptr) || (input_len == 0)) {
+            return 0;
+        }
+
         if ((size_t)end_ + input_len > buffer_size_) {
             log_infof("it may be over, end:%d, input len:%lu, buffer size:%lu",
                 end_, input_len, buffer_size_)
@@ -63,12 +67,12 @@ public:
         data_len_ += (int)input_len;
         end_ += (int)input_len;
 
-        log_infof("after append end:%d, data len:%d", end_, data_len_);
         return data_len_;
     }
 
     int consume_data(size_t consume_len) {
         if (consume_len > (size_t)data_len_) {
+            log_errorf("consume_len:%lu, data_len_:%d", consume_len, data_len_);
             return -1;
         }
 

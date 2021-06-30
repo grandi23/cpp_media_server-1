@@ -2,6 +2,8 @@
 #define AFM0_HPP
 #include "byte_stream.hpp"
 #include "logger.hpp"
+#include "data_buffer.hpp"
+
 #include <stdint.h>
 #include <vector>
 #include <string>
@@ -28,8 +30,20 @@ typedef enum {
 class AMF_ITERM
 {
 public:
-    AMF_ITERM(){}
-    ~AMF_ITERM(){}
+    AMF_ITERM() {}
+    ~AMF_ITERM() {
+        for (auto iter : amf_obj_) {
+            AMF_ITERM* temp = iter.second;
+            delete temp;
+        }
+        amf_obj_.clear();
+
+        for (auto iter : amf_array_) {
+            AMF_ITERM* temp = iter;
+            delete temp;
+        }
+        amf_array_.clear();
+    }
 
 public:
     AMF_DATA_TYPE get_amf_type() {
@@ -123,6 +137,156 @@ public:
     std::string desc_str_;
     std::unordered_map<std::string, AMF_ITERM*> amf_obj_;
     std::vector<AMF_ITERM*> amf_array_;
+};
+
+class AMF_Encoder
+{
+public:
+    static int encode(double num, data_buffer& buffer) {
+        size_t amf_len = 1 + 8;
+        uint8_t* data  = new uint8_t[amf_len];
+        uint8_t* p     = data;
+
+        *p = (uint8_t)AMF_DATA_TYPE_NUMBER;
+        p++;
+
+        uint64_t number = av_double2int(num);
+        write_8bytes(p, number);
+        p += 8;
+
+        buffer.append_data((char*)data, amf_len);
+        return RTMP_OK;
+    }
+
+    static int encode(bool flag, data_buffer& buffer) {
+        size_t amf_len = 1 + 1;
+        uint8_t* data  = new uint8_t[amf_len];
+        data[0] = AMF_DATA_TYPE_BOOL;
+        data[1] = flag ? 0x01 : 0x00;
+
+        buffer.append_data((char*)data, amf_len);
+        return RTMP_OK;
+    }
+
+    static int encode(const std::string& str, data_buffer& buffer) {
+        if (str.length() > 0xffff) {
+            uint32_t str_len = str.length();
+            size_t amf_len   = 1 + 4 + str_len;
+            uint8_t* data    = new uint8_t[amf_len];
+            uint8_t* p       = data;
+
+            *p = (uint8_t)AMF_DATA_TYPE_LONG_STRING;
+            p++;
+            write_4bytes(p, str_len);
+            p += 4;
+            memcpy(p, str.c_str(), str_len);
+
+            buffer.append_data((char*)data, amf_len);
+            delete[] data;
+        } else {
+            uint16_t str_len = str.length();
+            size_t amf_len   = 1 + 2 + str_len;
+            uint8_t* data    = new uint8_t[amf_len];
+            uint8_t* p       = data;
+
+            *p = (uint8_t)AMF_DATA_TYPE_STRING;
+            p++;
+            write_2bytes(p, str_len);
+            p += 2;
+            if (str_len > 0) {
+                memcpy(p, str.c_str(), str_len);
+            }
+
+            buffer.append_data((char*)data, amf_len);
+            delete[] data;
+        }
+        return RTMP_OK;
+    }
+
+    static int encode_onlytype(AMF_DATA_TYPE amf_type, data_buffer& buffer) {
+        uint8_t data = (uint8_t)amf_type;
+
+        buffer.append_data((char*)&data, 1);
+        return RTMP_OK;
+    }
+
+    static int encode(const std::unordered_map<std::string, AMF_ITERM*>& amf_obj, data_buffer& buffer) {
+        uint8_t start = AMF_DATA_TYPE_OBJECT;
+        buffer.append_data((char*)&start, 1);
+
+        for (const auto& iter : amf_obj) {
+            std::string key = iter.first;
+            AMF_ITERM* amf_item = iter.second;
+
+            AMF_Encoder::encode(key, buffer);
+
+            switch(amf_item->get_amf_type()) {
+                case AMF_DATA_TYPE_NUMBER:
+                {
+                    AMF_Encoder::encode(amf_item->number_, buffer);
+                    break;
+                }
+                case AMF_DATA_TYPE_BOOL:
+                {
+                    AMF_Encoder::encode(amf_item->enable_, buffer);
+                    break;
+                }
+                case AMF_DATA_TYPE_STRING:
+                {
+                    AMF_Encoder::encode(amf_item->desc_str_, buffer);
+                    break;
+                }
+                case AMF_DATA_TYPE_NULL:
+                {
+                    AMF_Encoder::encode_onlytype(AMF_DATA_TYPE_NULL, buffer);
+                    break;
+                }
+                case AMF_DATA_TYPE_UNDEFINED:
+                {
+                    AMF_Encoder::encode_onlytype(AMF_DATA_TYPE_UNDEFINED, buffer);
+                    break;
+                }
+                case AMF_DATA_TYPE_REFERENCE:
+                {
+                    log_errorf("not support amf reference");
+                    return -1;
+                }
+                case AMF_DATA_TYPE_MIXEDARRAY:
+                {
+                    //TODO: implement
+                    break;
+                }
+                case AMF_DATA_TYPE_ARRAY:
+                {
+                    //TODO: implement
+                    break;
+                }
+                case AMF_DATA_TYPE_DATE:
+                {
+                    //TODO: implement
+                    break;
+                }
+                case AMF_DATA_TYPE_LONG_STRING:
+                {
+                    AMF_Encoder::encode(amf_item->desc_str_, buffer);
+                    break;
+                }
+                case AMF_DATA_TYPE_UNSUPPORTED:
+                {
+                    log_errorf("not support amf unsupport");
+                    return -1;
+                }
+                default:
+                    log_errorf("not support amf type:%d", (int)amf_item->get_amf_type());
+                    return -1;
+            }
+        }
+        std::string end_str;
+        AMF_Encoder::encode(end_str, buffer);
+        uint8_t end = AMF_DATA_TYPE_OBJECT_END;
+        buffer.append_data((char*)&end, 1);
+        return RTMP_OK;
+    }
 };
 
 class AMF_Decoder
@@ -279,7 +443,6 @@ public:
                 break;
             }
             std::string key((char*)data, key_len);
-            log_infof("amf key len:%d, key:%s", key_len, key.c_str());
             data += key_len;
             len -= key_len;
 
@@ -291,7 +454,6 @@ public:
             if (ret != 0) {
                 return ret;
             }
-            amf_item->dump_amf();
             amf_obj.insert(std::make_pair(key, amf_item));
 
         }
