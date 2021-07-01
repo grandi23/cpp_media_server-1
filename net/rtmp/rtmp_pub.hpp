@@ -11,7 +11,9 @@ typedef enum {
     handshake_c0c1_phase,
     handshake_c2_phase,
     connect_phase,
-    create_stream_phase
+    create_stream_phase,
+    create_publish_play_phase,
+    media_handle_phase
 } RTMP_SESSION_PHASE;
 
 typedef enum {

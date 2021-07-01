@@ -158,6 +158,15 @@ public:
         return RTMP_OK;
     }
 
+    static int encode_null(data_buffer& buffer) {
+        size_t amf_len = 1;
+        uint8_t* data  = new uint8_t[amf_len];
+        data[0] = AMF_DATA_TYPE_NULL;
+
+        buffer.append_data((char*)data, amf_len);
+        return RTMP_OK;
+    }
+
     static int encode(bool flag, data_buffer& buffer) {
         size_t amf_len = 1 + 1;
         uint8_t* data  = new uint8_t[amf_len];
@@ -168,15 +177,18 @@ public:
         return RTMP_OK;
     }
 
-    static int encode(const std::string& str, data_buffer& buffer) {
+    static int encode(const std::string& str, data_buffer& buffer, bool skip_marker = false) {
         if (str.length() > 0xffff) {
             uint32_t str_len = str.length();
-            size_t amf_len   = 1 + 4 + str_len;
+            size_t amf_len   = 4 + str_len;
             uint8_t* data    = new uint8_t[amf_len];
             uint8_t* p       = data;
 
-            *p = (uint8_t)AMF_DATA_TYPE_LONG_STRING;
-            p++;
+            if (!skip_marker) {
+                *p = (uint8_t)AMF_DATA_TYPE_LONG_STRING;
+                p++;
+                amf_len++;
+            }
             write_4bytes(p, str_len);
             p += 4;
             memcpy(p, str.c_str(), str_len);
@@ -185,12 +197,15 @@ public:
             delete[] data;
         } else {
             uint16_t str_len = str.length();
-            size_t amf_len   = 1 + 2 + str_len;
+            size_t amf_len   = 2 + str_len;
             uint8_t* data    = new uint8_t[amf_len];
             uint8_t* p       = data;
 
-            *p = (uint8_t)AMF_DATA_TYPE_STRING;
-            p++;
+            if (!skip_marker) {
+                *p = (uint8_t)AMF_DATA_TYPE_STRING;
+                p++;
+                amf_len++;
+            }
             write_2bytes(p, str_len);
             p += 2;
             if (str_len > 0) {
@@ -218,7 +233,7 @@ public:
             std::string key = iter.first;
             AMF_ITERM* amf_item = iter.second;
 
-            AMF_Encoder::encode(key, buffer);
+            AMF_Encoder::encode(key, buffer, true);
 
             switch(amf_item->get_amf_type()) {
                 case AMF_DATA_TYPE_NUMBER:

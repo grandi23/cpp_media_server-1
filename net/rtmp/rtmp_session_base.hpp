@@ -6,7 +6,7 @@
 class rtmp_session_base
 {
 public:
-    virtual void try_read() = 0;
+    virtual void try_read(const char* filename, int line) = 0;
     virtual void send(char* data, int len) = 0;
     virtual data_buffer* get_recv_buffer() = 0;
 };
@@ -27,6 +27,8 @@ public:
     std::string app_;
     std::string tcurl_;
     std::string flash_ver_;
+    int64_t transaction_id_ = 0;
+    uint32_t stream_id_ = 0;
 };
 
 #endif

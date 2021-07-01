@@ -26,15 +26,15 @@ public:
     rtmp_session(boost::asio::ip::tcp::socket socket, rtmp_server_callbackI* callback) : callback_(callback) {
         session_ptr_ = std::make_shared<tcp_session>(std::move(socket), this);
 
-        try_read();
+        try_read(__FILE__, __LINE__);
     }
     virtual ~rtmp_session() {
 
     }
 
 public://implement rtmp_session_base
-    virtual void try_read() override {
-        log_infof("try to read....");
+    virtual void try_read(const char* filename, int line) override {
+        log_infof("try to read, filename:%s, line:%d", filename, line);
         session_ptr_->async_read();
     }
 
@@ -88,7 +88,7 @@ private:
         const size_t c1_size = 1536;
 
         if (!recv_buffer_.require(c0_size + c1_size)) {
-            try_read();
+            try_read(__FILE__, __LINE__);
             return RTMP_NEED_READ_MORE;
         }
 
@@ -98,7 +98,7 @@ private:
     int handle_c2() {
         const size_t c2_size = 1536;
         if (!recv_buffer_.require(c2_size)) {
-            try_read();
+            try_read(__FILE__, __LINE__);
             return RTMP_NEED_READ_MORE;
         }
         //TODO_JOB: handle c2 data.
@@ -117,7 +117,6 @@ private:
             csid_ = (*p) & 0x3f;
             recv_buffer_.consume_data(1);
         } else {
-            try_read();
             return RTMP_NEED_READ_MORE;
         }
 
@@ -129,7 +128,6 @@ private:
                 recv_buffer_.consume_data(1);
                 csid_ = 64 + *p;
             } else {
-                try_read();
                 return RTMP_NEED_READ_MORE;
             }
         } else if (csid_ == 1) {
@@ -140,7 +138,6 @@ private:
                 csid_ += *p++;
                 csid_ += *p;
             } else {
-                try_read();
                 return RTMP_NEED_READ_MORE;
             }
         } else {
@@ -150,6 +147,80 @@ private:
         return RTMP_OK;
     }
 
+    int handle_rtmp_publish_command(uint32_t stream_id, std::vector<AMF_ITERM*>& amf_vec) {
+        if (amf_vec.size() < 3) {
+            log_errorf("rtmp publish amf vector count error:%lu", amf_vec.size());
+            return -1;
+        }
+        double transactionId = 0;
+        std::string stream_name;
+
+        for (int index = 1; index < amf_vec.size(); index++) {
+            AMF_ITERM* item = amf_vec[index];
+            switch (item->get_amf_type())
+            {
+                case AMF_DATA_TYPE_NUMBER:
+                {
+                    log_infof("rtmp publish transaction id:%f", item->number_);
+                    transactionId = item->number_;
+                    req_.transaction_id_ = (int64_t)transactionId;
+                    break;
+                }
+                case AMF_DATA_TYPE_STRING:
+                {
+                    log_infof("rtmp publish string:%s", item->desc_str_.c_str());
+                    if (stream_name.empty()) {
+                        stream_name = item->desc_str_;
+                    }
+                    break;
+                }
+                case AMF_DATA_TYPE_OBJECT:
+                {
+                    log_infof("rtmp publish object:");
+                    item->dump_amf();
+                    break;
+                }
+                default:
+                    break;
+            }
+        }
+
+        return send_rtmp_publish_resp();
+    }
+
+    int handle_rtmp_createstream_command(uint32_t stream_id, std::vector<AMF_ITERM*>& amf_vec) {
+        if (amf_vec.size() < 3) {
+            log_errorf("rtmp create stream amf vector count error:%lu", amf_vec.size());
+            return -1;
+        }
+        double transactionId = 0;
+        
+        req_.stream_id_ = stream_id;
+        for (int index = 1; index < amf_vec.size(); index++) {
+            AMF_ITERM* item = amf_vec[index];
+            switch (item->get_amf_type())
+            {
+                case AMF_DATA_TYPE_NUMBER:
+                {
+                    log_infof("rtmp create stream transaction id:%f", item->number_);
+                    transactionId = item->number_;
+                    req_.transaction_id_ = (int64_t)transactionId;
+                    break;
+                }
+                case AMF_DATA_TYPE_OBJECT:
+                {
+                    log_infof("rtmp create stream object:");
+                    item->dump_amf();
+                    req_.dump();
+                    break;
+                }
+                default:
+                    break;
+            }
+        }
+
+        return send_rtmp_create_stream_resp(transactionId);
+    }
 
     int handle_rtmp_connect_command(uint32_t stream_id, std::vector<AMF_ITERM*>& amf_vec) {
         if (amf_vec.size() < 3) {
@@ -206,7 +277,75 @@ private:
             }
         }
 
-        return send_rtmp_connect_resp(stream_id);
+        return send_rtmp_connect_resp(stream_id_);
+    }
+
+    int send_rtmp_publish_resp() {
+        data_buffer amf_buffer;
+        double transaction_id = 0.0;
+
+        std::string result_str = "onStatus";
+        AMF_Encoder::encode(result_str, amf_buffer);
+        AMF_Encoder::encode(transaction_id, amf_buffer);
+        AMF_Encoder::encode_null(amf_buffer);
+
+        std::unordered_map<std::string, AMF_ITERM*> resp_amf_obj;
+
+        AMF_ITERM* level_item = new AMF_ITERM();
+        level_item->set_amf_type(AMF_DATA_TYPE_STRING);
+        level_item->desc_str_ = "status";
+        resp_amf_obj.insert(std::make_pair("level", level_item));
+
+        AMF_ITERM* code_item = new AMF_ITERM();
+        code_item->set_amf_type(AMF_DATA_TYPE_STRING);
+        code_item->desc_str_ = "NetStream.Publish.Start";
+        resp_amf_obj.insert(std::make_pair("code", code_item));
+
+        AMF_ITERM* desc_item = new AMF_ITERM();
+        desc_item->set_amf_type(AMF_DATA_TYPE_STRING);
+        desc_item->desc_str_ = "Start publising.";
+        resp_amf_obj.insert(std::make_pair("description", desc_item));
+
+        AMF_Encoder::encode(resp_amf_obj, amf_buffer);
+
+        data_buffer publish_resp;
+        int ret = gen_data_by_chunk_stream(this, 0, RTMP_COMMAND_MESSAGES_AMF0,
+                                        stream_id_, chunk_size_,
+                                        amf_buffer, publish_resp);
+        if (ret != RTMP_OK) {
+            return ret;
+        }
+
+        log_info_data((uint8_t*)publish_resp.data(), publish_resp.data_len(), "publish response");
+        send(publish_resp.data(), publish_resp.data_len());
+
+        session_phase_ = media_handle_phase;
+        return RTMP_OK;
+    }
+
+    int send_rtmp_create_stream_resp(double transaction_id) {
+        data_buffer amf_buffer;
+
+        std::string result_str = "_result";
+        double stream_id = (double)stream_id_;
+        AMF_Encoder::encode(result_str, amf_buffer);
+        AMF_Encoder::encode(transaction_id, amf_buffer);
+        AMF_Encoder::encode_null(amf_buffer);
+        AMF_Encoder::encode(stream_id, amf_buffer);
+
+        data_buffer create_stream_resp;
+        int ret = gen_data_by_chunk_stream(this, 0, RTMP_COMMAND_MESSAGES_AMF0,
+                                        stream_id_, chunk_size_,
+                                        amf_buffer, create_stream_resp);
+        if (ret != RTMP_OK) {
+            return ret;
+        }
+
+        log_info_data((uint8_t*)create_stream_resp.data(), create_stream_resp.data_len(), "create stream response");
+        send(create_stream_resp.data(), create_stream_resp.data_len());
+
+        session_phase_ = create_publish_play_phase;
+        return RTMP_OK;
     }
 
     int send_rtmp_connect_resp(uint32_t stream_id) {
@@ -354,6 +493,64 @@ private:
         return RTMP_OK;
     }
 
+    int handle_rtmp_command_message(CHUNK_STREAM_PTR cs_ptr, std::vector<AMF_ITERM*>& amf_vec) {
+        int ret = 0;
+        uint8_t* data = (uint8_t*)cs_ptr->chunk_data_.data();
+        int len = (int)cs_ptr->chunk_data_.data_len();
+    
+        while (len > 0) {
+            AMF_ITERM* amf_item = new AMF_ITERM();
+            AMF_Decoder::decode(data, len, *amf_item);
+    
+            amf_vec.push_back(amf_item);
+        }
+
+        if (amf_vec.size() < 1) {
+            log_errorf("amf vector count error:%lu", amf_vec.size());
+            return -1;
+        }
+    
+        AMF_ITERM* item = amf_vec[0];
+        std::string cmd_type;
+    
+        if (item->get_amf_type() != AMF_DATA_TYPE_STRING) {
+            log_errorf("first amf type error:%d", (int)item->get_amf_type());
+            for (auto iter : amf_vec) {
+                AMF_ITERM* temp = iter;
+                delete temp;
+            }
+            return -1;
+        }
+    
+        cmd_type = item->desc_str_;
+    
+        log_infof("**** receive rtmp command type:%s", cmd_type.c_str());
+        if (cmd_type == CMD_Connect) {
+            ret = handle_rtmp_connect_command(cs_ptr->msg_stream_id_, amf_vec);
+        } else if (cmd_type == CMD_CreateStream) {
+            ret = handle_rtmp_createstream_command(cs_ptr->msg_stream_id_, amf_vec);
+        } else if (cmd_type == CMD_Publish) {
+            ret = handle_rtmp_publish_command(cs_ptr->msg_stream_id_, amf_vec);
+        } else if (cmd_type == CMD_Play) {
+    
+        }
+
+        if (recv_buffer_.data_len() > 0) {
+            //TODO: delete item
+            for (auto item : amf_vec) {
+                delete item;
+            }
+            amf_vec.clear();
+            cs_ptr->chunk_data_.reset();
+            return RTMP_NEED_READ_MORE;
+        }
+        for (auto item : amf_vec) {
+            delete item;
+        }
+        amf_vec.clear();
+        return RTMP_OK;
+    }
+
     int receive_chunk_stream() {
         CHUNK_STREAM_PTR cs_ptr;
         int ret;
@@ -362,14 +559,16 @@ private:
         while(true) {
             //receive fmt+csid | basic header | message header | data
             ret = read_chunk_stream(cs_ptr);
-            if (ret < RTMP_OK) {
+            if ((ret < RTMP_OK) || (ret == RTMP_NEED_READ_MORE)) {
                 return ret;
             }
 
             if (!cs_ptr || !cs_ptr->is_ready()) {
                 continue;
             }
+            //chunk stream is ready(data is full)
 
+            //check whether we need to send rtmp control ack
             ret = send_rtmp_ack(cs_ptr->chunk_data_.data_len());
             if (ret < RTMP_OK) {
                 return ret;
@@ -385,54 +584,13 @@ private:
                 }
                 break;
             } else if ((cs_ptr->type_id_ == RTMP_COMMAND_MESSAGES_AMF0) || (cs_ptr->type_id_ == RTMP_COMMAND_MESSAGES_AMF3)) {
-                //handle rtmp command chunk in amf
-                uint8_t* data = (uint8_t*)cs_ptr->chunk_data_.data();
-                int len = (int)cs_ptr->chunk_data_.data_len();
-    
-                while (len > 0) {
-                    AMF_ITERM* amf_item = new AMF_ITERM();
-                    AMF_Decoder::decode(data, len, *amf_item);
-    
-                    amf_vec.push_back(amf_item);
-                }
-
-                if (amf_vec.size() < 1) {
-                    log_errorf("amf vector count error:%lu", amf_vec.size());
-                    return -1;
-                }
-        
-                AMF_ITERM* item = amf_vec[0];
-                std::string cmd_type;
-        
-                if (item->get_amf_type() != AMF_DATA_TYPE_STRING) {
-                    log_errorf("first amf type error:%d", (int)item->get_amf_type());
-                    for (auto iter : amf_vec) {
-                        AMF_ITERM* temp = iter;
-                        delete temp;
-                    }
-                    return -1;
-                }
-        
-                cmd_type = item->desc_str_;
-        
-                log_infof("**** receive rtmp command type:%s", cmd_type.c_str());
-                if (cmd_type == CMD_Connect) {
-                    ret = handle_rtmp_connect_command(cs_ptr->msg_stream_id_, amf_vec);
-                } else if (cmd_type == CMD_CreateStream) {
-        
-                } else if (cmd_type == CMD_Publish) {
-        
-                } else if (cmd_type == CMD_Play) {
-        
-                }
-                if (recv_buffer_.data_len() > 0) {
-                    //TODO: delete item
-                    amf_vec.clear();
-                    cs_ptr->chunk_data_.reset();
+                ret = handle_rtmp_command_message(cs_ptr, amf_vec);
+                if (ret == RTMP_NEED_READ_MORE) {
                     continue;
                 }
                 break;
             } else {
+                log_infof("handle media chunk msg len:%u", cs_ptr->msg_len_)
                 //handle video/audio
             }
             break;
@@ -479,7 +637,7 @@ private:
 
         send(s0s1s2, (int)sizeof(s0s1s2));
 
-        try_read();
+        try_read(__FILE__, __LINE__);
 
         return;
     }
@@ -514,7 +672,7 @@ private:
             log_infof("rtmp session phase become rtmp connect, buffer len:%lu", recv_buffer_.data_len());
             session_phase_ = connect_phase;
             if (recv_buffer_.data_len() == 0) {
-                try_read();
+                try_read(__FILE__, __LINE__);
             } else {
                 log_infof("start handle rtmp phase:%d", (int)session_phase_);
                 ret = receive_chunk_stream();
@@ -522,7 +680,7 @@ private:
                     close();
                     return;
                 }
-                try_read();
+                try_read(__FILE__, __LINE__);
             }
         } else if (session_phase_ >= connect_phase) {
             log_infof("start handle rtmp phase:%d", (int)session_phase_);
@@ -532,7 +690,7 @@ private:
                 close();
                 return;
             }
-            try_read();
+            try_read(__FILE__, __LINE__);
         }
     }
 
@@ -545,6 +703,7 @@ private:
     data_buffer recv_buffer_;
     rtmp_handshake hs_;
     rtmp_request req_;
+    uint32_t stream_id_ = 1;
 
 private:
     uint8_t fmt_  = 0;

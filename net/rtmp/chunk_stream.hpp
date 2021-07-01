@@ -115,7 +115,7 @@ public:
         //when it has message header;
         if (msg_hd_size > 0) {
             if (!buffer_p->require(msg_hd_size)) {
-                session_->try_read();
+                session_->try_read(__FILE__, __LINE__);
                 return RTMP_NEED_READ_MORE;
             }
             p = (uint8_t*)buffer_p->data();
@@ -124,7 +124,7 @@ public:
 
             if (ts_delta >= 0xffffff) {
                 if (!buffer_p->require(msg_hd_size + 1)) {
-                    session_->try_read();
+                    session_->try_read(__FILE__, __LINE__);
                     return RTMP_NEED_READ_MORE;
                 }
             }
@@ -180,7 +180,6 @@ public:
         require_len_ = (remain_ > chunk_size_) ? chunk_size_ : remain_;
 
         if (!buffer_p->require(require_len_)) {
-            session_->try_read();
             return RTMP_NEED_READ_MORE;
         }
 
