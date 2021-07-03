@@ -7,7 +7,7 @@ class rtmp_session_base
 {
 public:
     virtual void try_read(const char* filename, int line) = 0;
-    virtual void send(char* data, int len) = 0;
+    virtual void rtmp_send(char* data, int len) = 0;
     virtual data_buffer* get_recv_buffer() = 0;
 };
 

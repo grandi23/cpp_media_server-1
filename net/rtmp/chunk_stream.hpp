@@ -3,6 +3,7 @@
 #include "data_buffer.hpp"
 #include "rtmp_session_base.hpp"
 #include "byte_stream.hpp"
+#include "rtmp_pub.hpp"
 #include <stdint.h>
 #include <memory>
 
@@ -99,7 +100,7 @@ public:
             if (fmt_ == 1) {
                 log_warnf("chunk stream start with fmt=1.");
             } else {
-                log_errorf("chunk stream start with fmt=%d", fmt_);
+                log_errorf("strange chunk stream start with fmt=%d", fmt_);
                 return -1;
             }
         }
@@ -115,7 +116,6 @@ public:
         //when it has message header;
         if (msg_hd_size > 0) {
             if (!buffer_p->require(msg_hd_size)) {
-                session_->try_read(__FILE__, __LINE__);
                 return RTMP_NEED_READ_MORE;
             }
             p = (uint8_t*)buffer_p->data();
@@ -124,7 +124,6 @@ public:
 
             if (ts_delta >= 0xffffff) {
                 if (!buffer_p->require(msg_hd_size + 1)) {
-                    session_->try_read(__FILE__, __LINE__);
                     return RTMP_NEED_READ_MORE;
                 }
             }
@@ -187,8 +186,8 @@ public:
         buffer_p->consume_data(require_len_);
         remain_ -= require_len_;
 
-        log_infof("chunck message len:%u, require_len_:%lu, remain_:%lu",
-            msg_len_, require_len_, remain_);
+        log_infof("chunck message len:%u, require_len_:%lu, remain_:%lu, receive buffer size:%lu",
+            msg_len_, require_len_, remain_, buffer_p->data_len());
         if (remain_ <= 0) {
             chunk_ready_ = true;
         }
@@ -198,8 +197,11 @@ public:
     }
 
     void dump_header() {
-        log_infof("basic header: fmt=%d, csid:%d; message header: timestamp=%lu, msglen=%u, typeid:%d, msg streamid:%u",
-            fmt_, csid_, timestamp32_, msg_len_, type_id_, msg_stream_id_);
+        data_buffer* buffer_p = session_->get_recv_buffer();
+        log_infof("basic header: fmt=%d, csid:%d; message header: timestamp=%lu, \
+msglen=%u, typeid:%d, msg streamid:%u, remain:%ld, recv buffer len:%lu",
+            fmt_, csid_, timestamp32_, msg_len_, type_id_, msg_stream_id_, remain_,
+            buffer_p->data_len());
     }
 
     void dump_payload() {
@@ -270,6 +272,13 @@ public:
         chunk_all_.append_data((char*)data, (size_t)len);
 
         return RTMP_OK;
+    }
+
+    void reset() {
+        phase_ = CHUNK_STREAM_PHASE_HEADER;
+        chunk_ready_ = false;
+        chunk_all_.reset();
+        chunk_data_.reset();
     }
 
 public:

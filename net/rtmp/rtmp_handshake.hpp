@@ -463,7 +463,7 @@ public:
             }
             is_valid = check_digest_valid(SCHEMA0);
             if (!is_valid) {
-                log_errorf("check schema1 digest valid error...");
+                log_errorf("check schema0 digest valid error...");
                 return -1;
             }
             schema_ = SCHEMA1;
@@ -901,62 +901,24 @@ private:
     char s1_digest_data_[32];
 };
 
+class rtmp_session;
 class rtmp_handshake
 {
 public:
-    rtmp_handshake() {
-    }
-    ~rtmp_handshake() {
-    }
+    rtmp_handshake(rtmp_session* session);
+    ~rtmp_handshake();
 
 public:
-    int parse_c0c1(char* c0c1) {
-        c0_version_ = c0c1[0];
-        log_infof("handshake version:%d", c0_version_);
+    int handle_c0c1();
+    int handle_c2();
+    int send_s0s1s2();
 
-        return c1s1_.parse_c1(c0c1 + 1, (size_t)1536);
-    }
-
-    char* make_s1_data(int& s1_len) {
-        int ret = c1s1_.make_s1((char*)s1_body_);
-        
-        if (ret != 0) {
-            s1_len = 0;
-            log_errorf("make s1 error:%d", ret);
-            return nullptr;
-        }
-
-        s1_len = sizeof(s1_body_);
-        return s1_body_;
-    }
-
-    char* make_s2_data(int& s2_len) {
-        int ret;
-        
-        ret = c2s2_.create_by_digest(c1s1_.get_c1_digest());
-        if (ret != 0) {
-            log_errorf("c2s2 create by digest s2 error...");
-            return nullptr;
-        }
-
-        bool is_valid = c2s2_.validate_s2(c1s1_.get_c1_digest());
-        if (!is_valid) {
-            log_errorf("c2s2 validate s2 error...");
-            return nullptr;
-        }
-        c2s2_.generate(s2_body_);
-
-        s2_len = sizeof(s2_body_);
-        return s2_body_;
-    };
-
-    uint32_t get_c1_time() {
-        return c1s1_.get_c1_time();
-    }
-
-    char* get_c1_data() {
-        return c1s1_.get_c1_data();
-    }
+private:
+    int parse_c0c1(char* c0c1);
+    char* make_s1_data(int& s1_len);
+    char* make_s2_data(int& s2_len);
+    uint32_t get_c1_time();
+    char* get_c1_data();
 
 private:
     uint8_t c0_version_;
@@ -964,6 +926,7 @@ private:
     c2s2_handle c2s2_;
     char s1_body_[1536];
     char s2_body_[1536];
+    rtmp_session* session_ = nullptr;
 };
 
 #endif //RTMP_HANDSHAKE_HPP

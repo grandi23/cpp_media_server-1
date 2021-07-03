@@ -8,7 +8,6 @@
 
 typedef enum {
     initial_phase = -1,
-    handshake_c0c1_phase,
     handshake_c2_phase,
     connect_phase,
     create_stream_phase,
