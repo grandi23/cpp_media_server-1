@@ -34,7 +34,10 @@ ELSEIF (UNIX)
 target_link_libraries(echo_demo pthread rt dl z m boost_thread boost_system)
 ENDIF ()
 
-add_executable(http_server_demo net/http/http_server_demo.cpp utils/logger.cpp)
+add_executable(http_server_demo
+            net/http/http_server_demo.cpp
+            utils/data_buffer.cpp
+            utils/logger.cpp)
 IF (APPLE)
 target_link_libraries(http_server_demo pthread dl z m boost_thread boost_system)
 ELSEIF (UNIX)
@@ -46,7 +49,12 @@ add_executable(rtmp_server_demo
                net/rtmp/rtmp_session.cpp
                net/rtmp/rtmp_control_handler.cpp
                net/rtmp/rtmp_handshake.cpp
-               utils/logger.cpp)
+               net/rtmp/chunk_stream.cpp
+               net/rtmp/rtmp_media_stream.cpp
+               net/rtmp/rtmp_writer.cpp
+               utils/logger.cpp
+               utils/data_buffer.cpp
+               utils/byte_stream.cpp)
 IF (APPLE)
 target_link_libraries(rtmp_server_demo pthread dl z m ssl crypto boost_thread boost_system)
 ELSEIF (UNIX)

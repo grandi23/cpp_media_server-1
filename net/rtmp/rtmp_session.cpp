@@ -3,7 +3,8 @@
 
 rtmp_session::rtmp_session(boost::asio::ip::tcp::socket socket, rtmp_server_callbackI* callback) : callback_(callback)
     , hs_(this)
-    , ctrl_handler_(this) {
+    , ctrl_handler_(this)
+    , media_handler_(this) {
     session_ptr_ = std::make_shared<tcp_session>(std::move(socket), this);
     try_read(__FILE__, __LINE__);
 }
@@ -13,7 +14,7 @@ rtmp_session::~rtmp_session() {
 }
 
 void rtmp_session::try_read(const char* filename, int line) {
-    log_infof("try to read, filename:%s, line:%d", filename, line);
+    log_debugf("try to read, filename:%s, line:%d", filename, line);
     session_ptr_->async_read();
 }
 
@@ -29,6 +30,9 @@ void rtmp_session::rtmp_send(char* data, int len) {
 
 void rtmp_session::close() {
     log_infof("rtmp session close....");
+    if (req_.is_ready_ && !req_.publish_flag_) {
+        rtmp_media_stream::remove_player(&req_, this);
+    }
     boost::asio::ip::tcp::endpoint ep = session_ptr_->get_remote_endpoint();
     callback_->on_close(ep);
 }
@@ -43,9 +47,10 @@ void rtmp_session::on_write(int ret_code, size_t sent_size) {
 }
 
 void rtmp_session::on_read(int ret_code, const char* data, size_t data_size) {
-    log_infof("on read callback return code:%d, data_size:%lu, recv buffer size:%lu",
+    log_debugf("on read callback return code:%d, data_size:%lu, recv buffer size:%lu",
         ret_code, data_size, recv_buffer_.data_len());
     if ((ret_code != 0) || (data == nullptr) || (data_size == 0)){
+        log_errorf("read callback code:%d, sent size:%lu", ret_code, data_size);
         close();
         return;
     }
@@ -66,7 +71,7 @@ int rtmp_session::read_fmt_csid() {
 
     if (recv_buffer_.require(1)) {
         p = (uint8_t*)recv_buffer_.data();
-        log_infof("chunk 1st byte:0x%02x", *p);
+        log_debugf("chunk 1st byte:0x%02x", *p);
         fmt_  = ((*p) >> 6) & 0x3;
         csid_ = (*p) & 0x3f;
         recv_buffer_.consume_data(1);
@@ -74,7 +79,7 @@ int rtmp_session::read_fmt_csid() {
         return RTMP_NEED_READ_MORE;
     }
 
-    log_infof("rtmp chunk fmt:%d, csid:%d", fmt_, csid_);
+    log_debugf("rtmp chunk fmt:%d, csid:%d", fmt_, csid_);
     if (csid_ == 0) {
         if (recv_buffer_.require(1)) {//need 1 byte
             p = (uint8_t*)recv_buffer_.data();
@@ -94,7 +99,7 @@ int rtmp_session::read_fmt_csid() {
             return RTMP_NEED_READ_MORE;
         }
     } else {
-        log_infof("normal csid:%d", csid_);
+        log_debugf("normal csid:%d", csid_);
     }
 
     return RTMP_OK;
@@ -123,8 +128,8 @@ int rtmp_session::read_chunk_stream(CHUNK_STREAM_PTR& cs_ptr) {
     if ((ret < RTMP_OK) || (ret == RTMP_NEED_READ_MORE)) {
         return ret;
     } else {
-        log_infof("read message header ok");
-        cs_ptr->dump_header();
+        log_debugf("read message header ok");
+        //cs_ptr->dump_header();
         ret = cs_ptr->read_message_payload();
         if (ret == RTMP_OK) {
             fmt_ready_ = false;
@@ -159,8 +164,8 @@ int rtmp_session::receive_chunk_stream() {
             return RTMP_NEED_READ_MORE;
         }
 
-        log_infof("####### chunk stream is ready ########");
-        cs_ptr->dump_header();
+        log_debugf("####### chunk stream is ready ########");
+        //cs_ptr->dump_header();
         //check whether we need to send rtmp control ack
         (void)send_rtmp_ack(cs_ptr->chunk_data_.data_len());
 
@@ -174,7 +179,7 @@ int rtmp_session::receive_chunk_stream() {
                 continue;
             }
             break;
-        } else if ((cs_ptr->type_id_ == RTMP_COMMAND_MESSAGES_AMF0) || (cs_ptr->type_id_ == RTMP_COMMAND_MESSAGES_AMF3)) {
+        } else if (cs_ptr->type_id_ == RTMP_COMMAND_MESSAGES_AMF0) {
             std::vector<AMF_ITERM*> amf_vec;
             ret = ctrl_handler_.handle_rtmp_command_message(cs_ptr, amf_vec);
             log_infof("handle_rtmp_command_message return %d", ret);
@@ -190,18 +195,42 @@ int rtmp_session::receive_chunk_stream() {
                 delete temp;
             }
             cs_ptr->reset();
+
+            if (req_.is_ready_ && !req_.publish_flag_) {
+                //rtmp play is ready.
+                rtmp_media_stream::add_player(&req_, this);
+            }
             if (recv_buffer_.data_len() > 0) {
                 continue;
             }
             break;
-        } else {
-            log_infof("#### handle media chunk msg len:%u ####", cs_ptr->msg_len_);
+        } else if (cs_ptr->type_id_ == RTMP_COMMAND_MESSAGES_AMF3) {
+            //TODO: support amf3
+            log_warnf("does not support amf3");
+            return -1;
+        } else if ((cs_ptr->type_id_ == RTMP_COMMAND_MESSAGES_META_DATA0) || (cs_ptr->type_id_ == RTMP_COMMAND_MESSAGES_META_DATA3)) {
+            //discard rtmp meta data packet
+            cs_ptr->reset();
+            if (recv_buffer_.data_len() > 0) {
+                continue;
+            }
+        } else if ((cs_ptr->type_id_ == RTMP_MEDIA_PACKET_VIDEO) || (cs_ptr->type_id_ == RTMP_MEDIA_PACKET_AUDIO)) {
+            log_infof("handle media chunk msg len:%u, typeid:%d, ts:%u",
+                cs_ptr->msg_len_, cs_ptr->type_id_, cs_ptr->timestamp32_);
+
+            media_handler_.input_chunk_packet(cs_ptr);
 
             cs_ptr->reset();
             if (recv_buffer_.data_len() > 0) {
                 continue;
             }
             //handle video/audio
+        } else {
+            log_warnf("unkown chunk type id:%d", cs_ptr->type_id_);
+            cs_ptr->reset();
+            if (recv_buffer_.data_len() > 0) {
+                continue;
+            }
         }
         break;
     }
@@ -234,14 +263,14 @@ int rtmp_session::handle_request() {
         if (recv_buffer_.data_len() == 0) {
             return RTMP_NEED_READ_MORE;
         } else {
-            log_infof("start handle rtmp phase:%d", (int)session_phase_);
+            log_debugf("start handle rtmp phase:%d", (int)session_phase_);
             ret = receive_chunk_stream();
             if ((ret < 0) || (ret == RTMP_NEED_READ_MORE)) {
                 return ret;
             }
         }
     } else if (session_phase_ >= connect_phase) {
-        log_infof("start handle rtmp phase:%d", (int)session_phase_);
+        log_debugf("start handle rtmp phase:%d", (int)session_phase_);
         ret = receive_chunk_stream();
         if (ret < 0) {
             return ret;

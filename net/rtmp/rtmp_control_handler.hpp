@@ -16,9 +16,15 @@ public:
 public:
     int handle_rtmp_command_message(CHUNK_STREAM_PTR cs_ptr, std::vector<AMF_ITERM*>& amf_vec);
     int handle_rtmp_publish_command(uint32_t stream_id, std::vector<AMF_ITERM*>& amf_vec);
+    int handle_rtmp_play_command(uint32_t stream_id, std::vector<AMF_ITERM*>& amf_vec);
     int handle_rtmp_createstream_command(uint32_t stream_id, std::vector<AMF_ITERM*>& amf_vec);
     int handle_rtmp_connect_command(uint32_t stream_id, std::vector<AMF_ITERM*>& amf_vec);
     int send_rtmp_publish_resp();
+    int send_rtmp_play_resp();
+    int send_rtmp_play_reset_resp();
+    int send_rtmp_play_start_resp();
+    int send_rtmp_play_data_resp();
+    int send_rtmp_play_notify_resp();
     int send_rtmp_create_stream_resp(double transaction_id);
     int send_rtmp_connect_resp(uint32_t stream_id);
     int send_rtmp_ack(uint32_t size);

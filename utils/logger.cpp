@@ -43,7 +43,16 @@ void Logger::logf(const char* level, const char* buffer, const char* filename, i
 
     ss << "[" << level << "]" << "[" << get_now_str() << "]"
        << "[" << filename << ":" << line << "]"
-       << buffer;
+       << buffer << "\r\n";
     
-    std::cout << ss.str() << std::endl;
+    if (filename_.empty()) {
+        std::cout << ss.str();
+    } else {
+        FILE* file_p = fopen(filename_.c_str(), "ab+");
+        if (file_p) {
+            fwrite(ss.str().c_str(), ss.str().length(), 1, file_p);
+            fclose(file_p);
+        }
+    }
+    
 }

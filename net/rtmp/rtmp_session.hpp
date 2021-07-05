@@ -6,8 +6,9 @@
 #include "rtmp_pub.hpp"
 #include "rtmp_handshake.hpp"
 #include "chunk_stream.hpp"
-#include "rtmp_session_base.hpp"
 #include "rtmp_control_handler.hpp"
+#include "rtmp_request.hpp"
+#include "rtmp_media_stream.hpp"
 #include "amf/afm0.hpp"
 #include <memory>
 #include <stdint.h>
@@ -20,19 +21,20 @@ public:
     virtual void on_close(boost::asio::ip::tcp::endpoint endpoint) = 0;
 };
 
-class rtmp_session : public tcp_session_callbackI, public rtmp_session_base
+class rtmp_session : public tcp_session_callbackI
 {
 friend class rtmp_control_handler;
 friend class rtmp_handshake;
+friend class rtmp_media_stream;
 
 public:
     rtmp_session(boost::asio::ip::tcp::socket socket, rtmp_server_callbackI* callback);
     virtual ~rtmp_session();
 
-public://implement rtmp_session_base
-    virtual void try_read(const char* filename, int line) override;
-    virtual data_buffer* get_recv_buffer() override;
-    virtual void rtmp_send(char* data, int len) override;
+public:
+    void try_read(const char* filename, int line);
+    data_buffer* get_recv_buffer();
+    void rtmp_send(char* data, int len);
 
 public:
     void close();
@@ -63,13 +65,14 @@ private:
     bool fmt_ready_ = false;
     uint8_t fmt_    = 0;
     uint16_t csid_  = 0;
-    uint32_t chunk_size_ = CHUNK_DEF_SIZE;
+    uint32_t chunk_size_            = CHUNK_DEF_SIZE;
     uint32_t remote_window_acksize_ = 2500000;
-    uint32_t ack_received_ = 0;
+    uint32_t ack_received_          = 0;
     std::unordered_map<uint8_t, CHUNK_STREAM_PTR> cs_map_;
 
 private:
     rtmp_control_handler ctrl_handler_;
+    rtmp_media_stream media_handler_;
 };
 
 #endif

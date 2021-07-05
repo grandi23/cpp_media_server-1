@@ -12,96 +12,17 @@
 class data_buffer
 {
 public:
-    data_buffer(size_t data_size = EXTRA_LEN) {
-        buffer_      = new char[data_size];
-        buffer_size_ = data_size;
-        start_       = 0;
-        end_         = 0;
-        data_len_    = 0;
-
-        memset(buffer_, 0, data_size);
-    }
-
-    ~data_buffer() {
-        if (buffer_)
-        {
-            delete[] buffer_;
-        }
-    }
+    data_buffer(size_t data_size = EXTRA_LEN);
+    ~data_buffer();
 
 public:
-    int append_data(const char* input_data, size_t input_len) {
-        if ((input_data == nullptr) || (input_len == 0)) {
-            return 0;
-        }
+    int append_data(const char* input_data, size_t input_len);
+    int consume_data(size_t consume_len);
+    void reset();
 
-        if ((size_t)end_ + input_len > buffer_size_) {
-            log_infof("it may be over, end:%d, input len:%lu, buffer size:%lu",
-                end_, input_len, buffer_size_)
-            if (data_len_ + input_len >= buffer_size_) {
-                int new_len = data_len_ + (int)input_len + EXTRA_LEN;
-                char* new_buffer_ = new char[new_len];
-
-                memcpy(new_buffer_, buffer_ + start_, data_len_);
-                memcpy(new_buffer_ + data_len_, input_data, input_len);
-                delete[] buffer_;
-                buffer_      = new_buffer_;
-                buffer_size_ = new_len;
-                data_len_    += input_len;
-
-                start_     = 0;
-                end_       = data_len_;
-                return data_len_;
-            }
-
-            memcpy(buffer_, buffer_ + start_, data_len_);
-            memcpy(buffer_ + data_len_, input_data, input_len);
-            
-            data_len_ += input_len;
-            start_     = 0;
-            end_       = data_len_;
-            return data_len_;
-        }
-
-        memcpy(buffer_ + end_, input_data, input_len);
-        data_len_ += (int)input_len;
-        end_ += (int)input_len;
-
-        return data_len_;
-    }
-
-    int consume_data(size_t consume_len) {
-        if (consume_len > (size_t)data_len_) {
-            log_errorf("consume_len:%lu, data_len_:%d", consume_len, data_len_);
-            return -1;
-        }
-
-        start_    += consume_len;
-        data_len_ -= consume_len;
-
-        return 0;
-    }
-
-    void reset() {
-        start_    = 0;
-        end_      = 0;
-        data_len_ = 0;
-    }
-
-    char* data() {
-        return buffer_ + start_;
-    }
-
-    size_t data_len() {
-        return data_len_;
-    }
-
-    bool require(size_t len) {
-        if ((int)len <= data_len_) {
-            return true;
-        }
-        return false;
-    }
+    char* data();
+    size_t data_len();
+    bool require(size_t len);
 
 public:
     char* buffer_       = nullptr;
