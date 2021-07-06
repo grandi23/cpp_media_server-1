@@ -62,8 +62,19 @@ public:
     std::string vhost_;
     std::string app_;
     std::string streamname_;
+    uint32_t streamid_ = 0;
 };
 
 typedef std::shared_ptr<MEDIA_PACKET> MEDIA_PACKET_PTR;
+
+class av_writer_base
+{
+public:
+    virtual int write_packet(MEDIA_PACKET_PTR) = 0;
+    virtual std::string get_key() = 0;
+    virtual void close_writer() = 0;
+    virtual bool is_inited() = 0;
+    virtual void set_init_flag(bool flag) = 0;
+};
 
 #endif//MEDIA_PACKET_HPP

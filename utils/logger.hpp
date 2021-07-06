@@ -84,7 +84,7 @@ inline void log_info_data(const uint8_t* data, int len, const char* dscr) {
     size_t print_len = 0;
 
     print_len += snprintf(print_data, sizeof(print_data), "%s:", dscr);
-    for (size_t index = 0; index < ((len > 4096) ? 4096 : (size_t)len); index++) {
+    for (size_t index = 0; index < ((len > 64) ? 64 : (size_t)len); index++) {
         if ((index%16) == 0) {
             print_len += snprintf(print_data + print_len, sizeof(print_data) - print_len, "\r\n");
         }

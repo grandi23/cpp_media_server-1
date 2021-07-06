@@ -63,9 +63,9 @@ private:
 
 using CHUNK_STREAM_PTR = std::shared_ptr<chunk_stream>;
 
-int gen_data_by_chunk_stream(rtmp_session* session, uint16_t csid,
+int write_data_by_chunk_stream(rtmp_session* session, uint16_t csid,
                     uint32_t timestamp, uint8_t type_id,
                     uint32_t msg_stream_id, uint32_t chunk_size,
-                    data_buffer& input_buffer, data_buffer& ret_buffer);
+                    data_buffer& input_buffer);
 
 #endif

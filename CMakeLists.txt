@@ -21,13 +21,16 @@ include_directories(./net
                     ./net/rtmp
                     ./net/tcp
                     ./utils
+                    ./utils/av
                     ${CMAKE_BINARY_DIR}/output/include
                     /usr/local/include/)
 
 # set lib path
 link_directories(${CMAKE_BINARY_DIR}/output/lib /usr/local/lib64 /usr/local/lib)
 
-add_executable(echo_demo net/tcp/echo_demo.cpp utils/logger.cpp)
+add_executable(echo_demo net/tcp/echo_demo.cpp
+            utils/logger.cpp
+            utils/data_buffer.cpp)
 IF (APPLE)
 target_link_libraries(echo_demo pthread dl z m boost_thread boost_system)
 ELSEIF (UNIX)
@@ -50,11 +53,12 @@ add_executable(rtmp_server_demo
                net/rtmp/rtmp_control_handler.cpp
                net/rtmp/rtmp_handshake.cpp
                net/rtmp/chunk_stream.cpp
-               net/rtmp/rtmp_media_stream.cpp
                net/rtmp/rtmp_writer.cpp
                utils/logger.cpp
                utils/data_buffer.cpp
-               utils/byte_stream.cpp)
+               utils/byte_stream.cpp
+               utils/av/media_stream_manager.cpp
+               utils/av/gop_cache.cpp)
 IF (APPLE)
 target_link_libraries(rtmp_server_demo pthread dl z m ssl crypto boost_thread boost_system)
 ELSEIF (UNIX)

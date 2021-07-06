@@ -8,8 +8,10 @@
 #include "chunk_stream.hpp"
 #include "rtmp_control_handler.hpp"
 #include "rtmp_request.hpp"
-#include "rtmp_media_stream.hpp"
+#include "media_stream_manager.hpp"
 #include "amf/afm0.hpp"
+#include "rtmp_writer.hpp"
+#include "media_packet.hpp"
 #include <memory>
 #include <stdint.h>
 #include <unordered_map>
@@ -18,23 +20,26 @@
 class rtmp_server_callbackI
 {
 public:
-    virtual void on_close(boost::asio::ip::tcp::endpoint endpoint) = 0;
+    virtual void on_close(std::string session_key) = 0;
 };
 
 class rtmp_session : public tcp_session_callbackI
 {
 friend class rtmp_control_handler;
 friend class rtmp_handshake;
-friend class rtmp_media_stream;
+friend class media_stream_manager;
+friend class rtmp_writer;
 
 public:
-    rtmp_session(boost::asio::ip::tcp::socket socket, rtmp_server_callbackI* callback);
+    rtmp_session(boost::asio::ip::tcp::socket socket, rtmp_server_callbackI* callback, std::string session_key);
     virtual ~rtmp_session();
 
 public:
     void try_read(const char* filename, int line);
     data_buffer* get_recv_buffer();
     void rtmp_send(char* data, int len);
+    std::string get_sesson_key();
+    MEDIA_PACKET_PTR get_media_packet(CHUNK_STREAM_PTR cs_ptr);
 
 public:
     void close();
@@ -51,6 +56,7 @@ private:
     int send_rtmp_ack(uint32_t size);
 
 private:
+    std::string session_key_;
     std::shared_ptr<tcp_session> session_ptr_;
     rtmp_server_callbackI* callback_ = nullptr;
 
@@ -72,7 +78,8 @@ private:
 
 private:
     rtmp_control_handler ctrl_handler_;
-    rtmp_media_stream media_handler_;
+    rtmp_writer* play_writer_ = nullptr;
+    bool closed_flag_ = false;
 };
 
 #endif

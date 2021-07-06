@@ -30,5 +30,6 @@ public:
     int data_len_       = 0;
     int start_          = 0;
     int end_            = 0;
+    bool sent_flag_     = false;
 };
 #endif //DATA_BUFFER_H

@@ -50,12 +50,4 @@ typedef enum {
 #define	CMD_DeleteStream  "deleteStream"
 #define	CMD_Play          "play"
 
-class rtmp_writer_base
-{
-public:
-    virtual int write_packet(MEDIA_PACKET_PTR) = 0;
-    virtual void* get_source_session() = 0;
-    virtual void close_writer() = 0;
-};
-
 #endif //RTMP_PUB_HPP

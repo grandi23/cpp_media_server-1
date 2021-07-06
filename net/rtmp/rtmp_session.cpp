@@ -1,16 +1,20 @@
 #include "rtmp_session.hpp"
 #include "rtmp_control_handler.hpp"
 
-rtmp_session::rtmp_session(boost::asio::ip::tcp::socket socket, rtmp_server_callbackI* callback) : callback_(callback)
+rtmp_session::rtmp_session(boost::asio::ip::tcp::socket socket, rtmp_server_callbackI* callback, std::string session_key) : session_key_(session_key)
+    , callback_(callback)
     , hs_(this)
-    , ctrl_handler_(this)
-    , media_handler_(this) {
+    , ctrl_handler_(this) {
     session_ptr_ = std::make_shared<tcp_session>(std::move(socket), this);
     try_read(__FILE__, __LINE__);
 }
 
 rtmp_session::~rtmp_session() {
+    log_infof("rtmp session destruct...");
+}
 
+std::string rtmp_session::get_sesson_key() {
+    return session_key_;
 }
 
 void rtmp_session::try_read(const char* filename, int line) {
@@ -23,18 +27,25 @@ data_buffer* rtmp_session::get_recv_buffer() {
 }
 
 void rtmp_session::rtmp_send(char* data, int len) {
-    log_infof("rtmp send data len:%d", len);
+    log_debugf("rtmp send data len:%d", len);
     session_ptr_->async_write(data, len);
     return;
 }
 
 void rtmp_session::close() {
+    if (closed_flag_) {
+        return;
+    }
+    closed_flag_ = true;
     log_infof("rtmp session close....");
     if (req_.is_ready_ && !req_.publish_flag_) {
-        rtmp_media_stream::remove_player(&req_, this);
+        if (play_writer_) {
+            media_stream_manager::remove_player(play_writer_);
+        }
     }
-    boost::asio::ip::tcp::endpoint ep = session_ptr_->get_remote_endpoint();
-    callback_->on_close(ep);
+
+    callback_->on_close(session_key_);
+    session_ptr_->close();
 }
 
 void rtmp_session::on_write(int ret_code, size_t sent_size) {
@@ -43,7 +54,6 @@ void rtmp_session::on_write(int ret_code, size_t sent_size) {
         close();
         return;
     }
-    log_infof("**** on write callback sent_size:%lu", sent_size);
 }
 
 void rtmp_session::on_read(int ret_code, const char* data, size_t data_size) {
@@ -198,7 +208,8 @@ int rtmp_session::receive_chunk_stream() {
 
             if (req_.is_ready_ && !req_.publish_flag_) {
                 //rtmp play is ready.
-                rtmp_media_stream::add_player(&req_, this);
+                play_writer_ = new rtmp_writer(this);
+                media_stream_manager::add_player(play_writer_);
             }
             if (recv_buffer_.data_len() > 0) {
                 continue;
@@ -215,10 +226,14 @@ int rtmp_session::receive_chunk_stream() {
                 continue;
             }
         } else if ((cs_ptr->type_id_ == RTMP_MEDIA_PACKET_VIDEO) || (cs_ptr->type_id_ == RTMP_MEDIA_PACKET_AUDIO)) {
-            log_infof("handle media chunk msg len:%u, typeid:%d, ts:%u",
+            log_debugf("handle media chunk msg len:%u, typeid:%d, ts:%u",
                 cs_ptr->msg_len_, cs_ptr->type_id_, cs_ptr->timestamp32_);
 
-            media_handler_.input_chunk_packet(cs_ptr);
+            MEDIA_PACKET_PTR pkt_ptr = get_media_packet(cs_ptr);
+            if (pkt_ptr->buffer_.data_len() == 0) {
+                return -1;
+            }
+            media_stream_manager::writer_media_packet(pkt_ptr);
 
             cs_ptr->reset();
             if (recv_buffer_.data_len() > 0) {
@@ -236,6 +251,83 @@ int rtmp_session::receive_chunk_stream() {
     }
 
     return ret;
+}
+
+MEDIA_PACKET_PTR rtmp_session::get_media_packet(CHUNK_STREAM_PTR cs_ptr) {
+    MEDIA_PACKET_PTR pkt_ptr;
+
+    if (cs_ptr->chunk_data_.data_len() < 2) {
+        log_errorf("rtmp chunk media size:%lu is too small", cs_ptr->chunk_data_.data_len());
+        return pkt_ptr;
+    }
+    uint8_t* p = (uint8_t*)cs_ptr->chunk_data_.data();
+
+    pkt_ptr = std::make_shared<MEDIA_PACKET>();
+
+    if (cs_ptr->type_id_ == RTMP_MEDIA_PACKET_VIDEO) {
+        uint8_t codec = p[0] & 0x0f;
+        pkt_ptr->av_type_ = MEDIA_VIDEO_TYPE;
+        if (codec == FLV_VIDEO_H264_CODEC) {
+            pkt_ptr->codec_type_ = MEDIA_CODEC_H264;
+        } else if (codec == FLV_VIDEO_H265_CODEC) {
+            pkt_ptr->codec_type_ = MEDIA_CODEC_H265;
+        } else {
+            log_errorf("does not support video codec typeid:%d, 0x%02x", cs_ptr->type_id_, p[0]);
+            assert(0);
+            return pkt_ptr;
+        }
+
+        uint8_t frame_type = (p[0] & 0xf0) >> 4;
+        uint8_t nalu_type = p[1];
+        if (frame_type == FLV_VIDEO_KEY_FLAG) {
+            if (nalu_type == FLV_VIDEO_AVC_SEQHDR) {
+                pkt_ptr->is_seq_hdr_ = true;
+            } else if (nalu_type == FLV_VIDEO_AVC_NALU) {
+                pkt_ptr->is_key_frame_ = true;
+            } else {
+                log_errorf("input flv video error, 0x%02x 0x%02x", p[0], p[1]);
+                return pkt_ptr;
+            }
+        } else if (frame_type == FLV_VIDEO_INTER_FLAG) {
+            pkt_ptr->is_key_frame_ = false;
+        }
+        log_debugf("flv video codec:%d, is key:%d, is hdr:%d, 0x%02x 0x%02x",
+            pkt_ptr->codec_type_, pkt_ptr->is_key_frame_, pkt_ptr->is_seq_hdr_,
+            p[0], p[1]);
+    } else if (cs_ptr->type_id_ == RTMP_MEDIA_PACKET_AUDIO) {
+        pkt_ptr->av_type_ = MEDIA_AUDIO_TYPE;
+        if ((p[0] & 0xf0) == 0xa0) {
+            pkt_ptr->codec_type_ = MEDIA_CODEC_AAC;
+            if(p[1] == 0x00) {
+                pkt_ptr->is_seq_hdr_ = true;
+            } else if (p[1] == 0x01) {
+                pkt_ptr->is_key_frame_ = false;
+                pkt_ptr->is_seq_hdr_   = false;
+            }
+        } else {
+            log_errorf("does not support audio codec typeid:%d, 0x%02x", cs_ptr->type_id_, p[0]);
+            assert(0);
+            return pkt_ptr;
+        }
+        log_debugf("flv audio codec:%d, is key:%d, is hdr:%d, 0x%02x 0x%02x",
+            pkt_ptr->codec_type_, pkt_ptr->is_key_frame_, pkt_ptr->is_seq_hdr_,
+            p[0], p[1]);
+    } else {
+        log_warnf("rtmp input unkown media type:%d", cs_ptr->type_id_);
+        assert(0);
+        return pkt_ptr;
+    }
+
+    pkt_ptr->timestamp_  = cs_ptr->timestamp32_;
+    pkt_ptr->buffer_.reset();
+    pkt_ptr->buffer_.append_data(cs_ptr->chunk_data_.data(), cs_ptr->chunk_data_.data_len());
+
+    pkt_ptr->app_        = req_.app_;
+    pkt_ptr->streamname_ = req_.stream_name_;
+    pkt_ptr->key_        = req_.key_;
+    pkt_ptr->streamid_   = cs_ptr->msg_stream_id_;
+
+    return pkt_ptr;
 }
 
 int rtmp_session::handle_request() {

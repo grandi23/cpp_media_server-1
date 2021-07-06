@@ -3,6 +3,7 @@
 #include "rtmp_session.hpp"
 #include "rtmp_pub.hpp"
 #include "tcp_server.hpp"
+#include "logger.hpp"
 #include <unordered_map>
 
 class rtmp_server : public tcp_server_callbackI, public rtmp_server_callbackI
@@ -17,11 +18,9 @@ public:
     }
 
 protected:
-    virtual void on_close(boost::asio::ip::tcp::endpoint endpoint) override {
-        std::string key;
-
-        make_endpoint_string(endpoint, key);
-        const auto iter = session_ptr_map_.find(key);
+    virtual void on_close(std::string session_key) override {
+        log_infof("tcp close key:%s", session_key.c_str());
+        const auto iter = session_ptr_map_.find(session_key);
         if (iter != session_ptr_map_.end()) {
             session_ptr_map_.erase(iter);
         }
@@ -32,7 +31,8 @@ protected:
         if (ret_code == 0) {
             std::string key;
             make_endpoint_string(socket.remote_endpoint(), key);
-            std::shared_ptr<rtmp_session> session_ptr = std::make_shared<rtmp_session>(std::move(socket), this);
+            log_infof("tcp accept key:%s", key.c_str());
+            std::shared_ptr<rtmp_session> session_ptr = std::make_shared<rtmp_session>(std::move(socket), this, key);
             session_ptr_map_.insert(std::make_pair(key, session_ptr));
         }
         server_->accept();

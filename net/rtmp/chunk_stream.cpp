@@ -429,10 +429,10 @@ void chunk_stream::reset() {
     chunk_data_.reset();
 }
 
-int gen_data_by_chunk_stream(rtmp_session* session, uint16_t csid,
+int write_data_by_chunk_stream(rtmp_session* session, uint16_t csid,
                     uint32_t timestamp, uint8_t type_id,
                     uint32_t msg_stream_id, uint32_t chunk_size,
-                    data_buffer& input_buffer, data_buffer& ret_buffer)
+                    data_buffer& input_buffer)
 {
     int cs_count = input_buffer.data_len()/chunk_size;
     int fmt = 0;
@@ -469,7 +469,7 @@ int gen_data_by_chunk_stream(rtmp_session* session, uint16_t csid,
         c->gen_data(p, len);
         //log_infof("msg len:%d", len);
         
-        ret_buffer.append_data(c->chunk_all_.data(), c->chunk_all_.data_len());
+        session->rtmp_send(c->chunk_all_.data(), c->chunk_all_.data_len());
 
         delete c;
     }

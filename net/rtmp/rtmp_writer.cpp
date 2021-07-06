@@ -1,5 +1,8 @@
 #include "rtmp_writer.hpp"
+#include "chunk_stream.hpp"
+#include "rtmp_session.hpp"
 #include "logger.hpp"
+#include <stdio.h>
 
 rtmp_writer::rtmp_writer(rtmp_session* session):session_(session)
 {
@@ -12,18 +15,40 @@ rtmp_writer::~rtmp_writer()
 }
 
 int rtmp_writer::write_packet(MEDIA_PACKET_PTR pkt_ptr) {
-    log_infof("pkt key:%s, av type:%d, codec type:%d, ts:%ld, data size:%lu",
-        pkt_ptr->key_.c_str(), (int)pkt_ptr->av_type_, (int)pkt_ptr->codec_type_,
-        pkt_ptr->timestamp_, pkt_ptr->buffer_.data_len());
+    uint16_t csid;
+    uint8_t  type_id;
+    
+    if (pkt_ptr->av_type_ == MEDIA_VIDEO_TYPE) {
+        csid = 6;
+        type_id = RTMP_MEDIA_PACKET_VIDEO;
+    } else if (pkt_ptr->av_type_ == MEDIA_AUDIO_TYPE) {
+        csid = 4;
+        type_id = RTMP_MEDIA_PACKET_AUDIO;
+    } else {
+        log_errorf("doesn't support av type:%d", (int)pkt_ptr->av_type_);
+        return -1;
+    }
 
+    write_data_by_chunk_stream(session_, csid,
+                    pkt_ptr->timestamp_, type_id,
+                    pkt_ptr->streamid_, session_->chunk_size_,
+                    pkt_ptr->buffer_);
     return RTMP_OK;
 }
 
-void* rtmp_writer::get_source_session() {
-    return (void*)session_;
+std::string rtmp_writer::get_key() {
+    return session_->req_.key_;
 }
 
 void rtmp_writer::close_writer() {
 
     delete this;
+}
+
+bool rtmp_writer::is_inited() {
+    return init_flag_;
+}
+
+void rtmp_writer::set_init_flag(bool flag) {
+    init_flag_ = flag;
 }
