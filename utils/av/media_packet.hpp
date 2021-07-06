@@ -8,7 +8,8 @@
 typedef enum {
     MEDIA_UNKOWN_TYPE = 0,
     MEDIA_VIDEO_TYPE = 1,
-    MEDIA_AUDIO_TYPE
+    MEDIA_AUDIO_TYPE,
+    MEDIA_METADATA_TYPE
 } MEDIA_PKT_TYPE;
 
 typedef enum {
@@ -63,6 +64,7 @@ public:
     std::string app_;
     std::string streamname_;
     uint32_t streamid_ = 0;
+    uint8_t typeid_ = 0;
 };
 
 typedef std::shared_ptr<MEDIA_PACKET> MEDIA_PACKET_PTR;

@@ -584,6 +584,8 @@ int rtmp_control_handler::handle_rtmp_control_message(CHUNK_STREAM_PTR cs_ptr) {
         }
         session_->remote_window_acksize_ = read_4bytes((uint8_t*)cs_ptr->chunk_data_.data());
         log_infof("update remote window ack size:%u", session_->remote_window_acksize_);
+    } else if (cs_ptr->type_id_ == RTMP_CONTROL_ACK) {
+        log_debugf("receive rtmp control ack...");
     } else {
         log_infof("don't handle rtmp control message:%d", cs_ptr->type_id_);
     }

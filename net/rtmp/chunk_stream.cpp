@@ -343,8 +343,6 @@ int chunk_stream::read_message_payload() {
 
     remain_ -= require_len_;
     msg_count_++;
-    log_debugf("chunck message len:%u, require_len_:%lu, remain_:%lu, receive buffer size:%lu",
-        msg_len_, require_len_, remain_, buffer_p->data_len());
     if (remain_ <= 0) {
         chunk_ready_ = true;
     }
@@ -414,8 +412,8 @@ int chunk_stream::gen_data(uint8_t* data, int len) {
         uint8_t* p = header_data;
         write_3bytes(p, timestamp32_);
         chunk_all_.append_data((char*)header_data, sizeof(header_data));
-    } else if (fmt_ == 3) {
-        log_debugf("fmt only append data");
+    } else {
+        //need do nothing
     }
 
     chunk_all_.append_data((char*)data, (size_t)len);
@@ -462,7 +460,7 @@ int write_data_by_chunk_stream(rtmp_session* session, uint16_t csid,
         }
         chunk_stream* c = new chunk_stream(session, fmt, csid, chunk_size);
 
-        c->timestamp32_ = 0;
+        c->timestamp32_ = timestamp;
         c->msg_len_     = input_buffer.data_len();
         c->type_id_     = type_id;
         c->msg_stream_id_ = msg_stream_id;

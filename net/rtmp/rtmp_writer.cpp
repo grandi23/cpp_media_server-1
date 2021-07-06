@@ -24,6 +24,9 @@ int rtmp_writer::write_packet(MEDIA_PACKET_PTR pkt_ptr) {
     } else if (pkt_ptr->av_type_ == MEDIA_AUDIO_TYPE) {
         csid = 4;
         type_id = RTMP_MEDIA_PACKET_AUDIO;
+    } else if (pkt_ptr->av_type_ == MEDIA_METADATA_TYPE) {
+        csid = 6;
+        type_id = pkt_ptr->typeid_;
     } else {
         log_errorf("doesn't support av type:%d", (int)pkt_ptr->av_type_);
         return -1;

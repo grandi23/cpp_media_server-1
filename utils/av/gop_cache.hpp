@@ -16,5 +16,6 @@ private:
     std::list<MEDIA_PACKET_PTR> packet_list;
     MEDIA_PACKET_PTR video_hdr_;
     MEDIA_PACKET_PTR audio_hdr_;
+    MEDIA_PACKET_PTR metadata_hdr_;
 };
 #endif

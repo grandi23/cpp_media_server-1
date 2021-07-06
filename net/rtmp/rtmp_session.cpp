@@ -18,7 +18,6 @@ std::string rtmp_session::get_sesson_key() {
 }
 
 void rtmp_session::try_read(const char* filename, int line) {
-    log_debugf("try to read, filename:%s, line:%d", filename, line);
     session_ptr_->async_read();
 }
 
@@ -27,7 +26,6 @@ data_buffer* rtmp_session::get_recv_buffer() {
 }
 
 void rtmp_session::rtmp_send(char* data, int len) {
-    log_debugf("rtmp send data len:%d", len);
     session_ptr_->async_write(data, len);
     return;
 }
@@ -57,8 +55,6 @@ void rtmp_session::on_write(int ret_code, size_t sent_size) {
 }
 
 void rtmp_session::on_read(int ret_code, const char* data, size_t data_size) {
-    log_debugf("on read callback return code:%d, data_size:%lu, recv buffer size:%lu",
-        ret_code, data_size, recv_buffer_.data_len());
     if ((ret_code != 0) || (data == nullptr) || (data_size == 0)){
         log_errorf("read callback code:%d, sent size:%lu", ret_code, data_size);
         close();
@@ -72,7 +68,7 @@ void rtmp_session::on_read(int ret_code, const char* data, size_t data_size) {
     } else if (ret == RTMP_NEED_READ_MORE) {
         try_read(__FILE__, __LINE__);
     } else {
-        log_debugf("handle request ok");
+        //need do nothing
     }
 }
 
@@ -81,7 +77,6 @@ int rtmp_session::read_fmt_csid() {
 
     if (recv_buffer_.require(1)) {
         p = (uint8_t*)recv_buffer_.data();
-        log_debugf("chunk 1st byte:0x%02x", *p);
         fmt_  = ((*p) >> 6) & 0x3;
         csid_ = (*p) & 0x3f;
         recv_buffer_.consume_data(1);
@@ -89,7 +84,6 @@ int rtmp_session::read_fmt_csid() {
         return RTMP_NEED_READ_MORE;
     }
 
-    log_debugf("rtmp chunk fmt:%d, csid:%d", fmt_, csid_);
     if (csid_ == 0) {
         if (recv_buffer_.require(1)) {//need 1 byte
             p = (uint8_t*)recv_buffer_.data();
@@ -109,7 +103,7 @@ int rtmp_session::read_fmt_csid() {
             return RTMP_NEED_READ_MORE;
         }
     } else {
-        log_debugf("normal csid:%d", csid_);
+        //normal csid: 2~64
     }
 
     return RTMP_OK;
@@ -138,7 +132,6 @@ int rtmp_session::read_chunk_stream(CHUNK_STREAM_PTR& cs_ptr) {
     if ((ret < RTMP_OK) || (ret == RTMP_NEED_READ_MORE)) {
         return ret;
     } else {
-        log_debugf("read message header ok");
         //cs_ptr->dump_header();
         ret = cs_ptr->read_message_payload();
         if (ret == RTMP_OK) {
@@ -174,8 +167,6 @@ int rtmp_session::receive_chunk_stream() {
             return RTMP_NEED_READ_MORE;
         }
 
-        log_debugf("####### chunk stream is ready ########");
-        //cs_ptr->dump_header();
         //check whether we need to send rtmp control ack
         (void)send_rtmp_ack(cs_ptr->chunk_data_.data_len());
 
@@ -219,16 +210,8 @@ int rtmp_session::receive_chunk_stream() {
             //TODO: support amf3
             log_warnf("does not support amf3");
             return -1;
-        } else if ((cs_ptr->type_id_ == RTMP_COMMAND_MESSAGES_META_DATA0) || (cs_ptr->type_id_ == RTMP_COMMAND_MESSAGES_META_DATA3)) {
-            //discard rtmp meta data packet
-            cs_ptr->reset();
-            if (recv_buffer_.data_len() > 0) {
-                continue;
-            }
-        } else if ((cs_ptr->type_id_ == RTMP_MEDIA_PACKET_VIDEO) || (cs_ptr->type_id_ == RTMP_MEDIA_PACKET_AUDIO)) {
-            log_debugf("handle media chunk msg len:%u, typeid:%d, ts:%u",
-                cs_ptr->msg_len_, cs_ptr->type_id_, cs_ptr->timestamp32_);
-
+        } else if ((cs_ptr->type_id_ == RTMP_MEDIA_PACKET_VIDEO) || (cs_ptr->type_id_ == RTMP_MEDIA_PACKET_AUDIO)
+                || (cs_ptr->type_id_ == RTMP_COMMAND_MESSAGES_META_DATA0) || (cs_ptr->type_id_ == RTMP_COMMAND_MESSAGES_META_DATA3)) {
             MEDIA_PACKET_PTR pkt_ptr = get_media_packet(cs_ptr);
             if (pkt_ptr->buffer_.data_len() == 0) {
                 return -1;
@@ -264,6 +247,8 @@ MEDIA_PACKET_PTR rtmp_session::get_media_packet(CHUNK_STREAM_PTR cs_ptr) {
 
     pkt_ptr = std::make_shared<MEDIA_PACKET>();
 
+    pkt_ptr->typeid_ = cs_ptr->type_id_;
+
     if (cs_ptr->type_id_ == RTMP_MEDIA_PACKET_VIDEO) {
         uint8_t codec = p[0] & 0x0f;
         pkt_ptr->av_type_ = MEDIA_VIDEO_TYPE;
@@ -291,9 +276,6 @@ MEDIA_PACKET_PTR rtmp_session::get_media_packet(CHUNK_STREAM_PTR cs_ptr) {
         } else if (frame_type == FLV_VIDEO_INTER_FLAG) {
             pkt_ptr->is_key_frame_ = false;
         }
-        log_debugf("flv video codec:%d, is key:%d, is hdr:%d, 0x%02x 0x%02x",
-            pkt_ptr->codec_type_, pkt_ptr->is_key_frame_, pkt_ptr->is_seq_hdr_,
-            p[0], p[1]);
     } else if (cs_ptr->type_id_ == RTMP_MEDIA_PACKET_AUDIO) {
         pkt_ptr->av_type_ = MEDIA_AUDIO_TYPE;
         if ((p[0] & 0xf0) == 0xa0) {
@@ -309,9 +291,9 @@ MEDIA_PACKET_PTR rtmp_session::get_media_packet(CHUNK_STREAM_PTR cs_ptr) {
             assert(0);
             return pkt_ptr;
         }
-        log_debugf("flv audio codec:%d, is key:%d, is hdr:%d, 0x%02x 0x%02x",
-            pkt_ptr->codec_type_, pkt_ptr->is_key_frame_, pkt_ptr->is_seq_hdr_,
-            p[0], p[1]);
+    } else if ((cs_ptr->type_id_ == RTMP_COMMAND_MESSAGES_META_DATA0) || (cs_ptr->type_id_ == RTMP_COMMAND_MESSAGES_META_DATA3)) {
+        pkt_ptr->av_type_ = MEDIA_METADATA_TYPE;
+        log_infof("receive rtmp metadata....");
     } else {
         log_warnf("rtmp input unkown media type:%d", cs_ptr->type_id_);
         assert(0);
@@ -355,14 +337,12 @@ int rtmp_session::handle_request() {
         if (recv_buffer_.data_len() == 0) {
             return RTMP_NEED_READ_MORE;
         } else {
-            log_debugf("start handle rtmp phase:%d", (int)session_phase_);
             ret = receive_chunk_stream();
             if ((ret < 0) || (ret == RTMP_NEED_READ_MORE)) {
                 return ret;
             }
         }
     } else if (session_phase_ >= connect_phase) {
-        log_debugf("start handle rtmp phase:%d", (int)session_phase_);
         ret = receive_chunk_stream();
         if (ret < 0) {
             return ret;
