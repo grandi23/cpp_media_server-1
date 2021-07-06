@@ -52,6 +52,33 @@ public:
 
         log_infof("async_write_some data len:%lu", head_ptr->data_len());
         head_ptr->sent_flag_ = true;
+        boost::asio::async_write(socket_, boost::asio::buffer(head_ptr->data(), head_ptr->data_len()),
+            [self](boost::system::error_code ec, size_t written_size) {
+                if (!ec && self->callback_) {
+                    int64_t remain = (int64_t)written_size;
+                    log_infof("writen callback len:%lu, send list:%lu", written_size, self->send_buffer_queue_.size());
+                    while(remain > 0) {
+                        auto current = self->send_buffer_queue_.front();
+                        int64_t current_len = current->data_len();
+                        if (current_len > remain) {
+                            current->consume_data(remain);
+                            remain = 0;
+                        } else {
+                            self->send_buffer_queue_.pop();
+                            remain -= current_len;
+                        }
+                    }
+
+                    self->callback_->on_write(0, written_size);
+                    self->do_write();
+                    return;
+                }
+                log_infof("write callback error:%s, value:%d", ec.message().c_str(), ec.value());
+                if (self->callback_) {
+                    self->callback_->on_write(-1, written_size);
+                }
+            });
+        /*
         socket_.async_write_some(boost::asio::buffer(head_ptr->data(), head_ptr->data_len()),
             [self](boost::system::error_code ec, size_t written_size) {
                 if (!ec && self->callback_) {
@@ -78,6 +105,7 @@ public:
                     self->callback_->on_write(-1, written_size);
                 }
             });
+            */
     }
 public:
     void async_write(const char* data, size_t data_size) {
