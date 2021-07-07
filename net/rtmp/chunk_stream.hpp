@@ -48,8 +48,8 @@ public:
     int64_t  remain_          = 0;
     int64_t  require_len_     = 0;
     uint32_t chunk_size_      = CHUNK_DEF_SIZE;
-    data_buffer chunk_all_;
-    data_buffer chunk_data_;
+    std::shared_ptr<data_buffer> chunk_all_ptr_;
+    std::shared_ptr<data_buffer> chunk_data_ptr_;
 
 private:
     rtmp_session* session_ = nullptr;
@@ -66,6 +66,10 @@ using CHUNK_STREAM_PTR = std::shared_ptr<chunk_stream>;
 int write_data_by_chunk_stream(rtmp_session* session, uint16_t csid,
                     uint32_t timestamp, uint8_t type_id,
                     uint32_t msg_stream_id, uint32_t chunk_size,
-                    data_buffer& input_buffer);
+                    std::shared_ptr<data_buffer> input_buffer);
 
+int write_data_by_chunk_stream(rtmp_session* session, uint16_t csid,
+                    uint32_t timestamp, uint8_t type_id,
+                    uint32_t msg_stream_id, uint32_t chunk_size,
+                    data_buffer& input_buffer);
 #endif

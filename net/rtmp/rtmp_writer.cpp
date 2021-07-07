@@ -35,12 +35,16 @@ int rtmp_writer::write_packet(MEDIA_PACKET_PTR pkt_ptr) {
     write_data_by_chunk_stream(session_, csid,
                     pkt_ptr->timestamp_, type_id,
                     pkt_ptr->streamid_, session_->chunk_size_,
-                    pkt_ptr->buffer_);
+                    pkt_ptr->buffer_ptr_);
     return RTMP_OK;
 }
 
 std::string rtmp_writer::get_key() {
     return session_->req_.key_;
+}
+
+std::string rtmp_writer::get_writerid() {
+    return session_->get_sesson_key();
 }
 
 void rtmp_writer::close_writer() {

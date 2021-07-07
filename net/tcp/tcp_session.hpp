@@ -35,7 +35,7 @@ public:
         delete[] buffer_;
     }
 
-public:
+private:
     void do_write() {
         if (send_buffer_queue_.empty()) {
             return;
@@ -84,10 +84,18 @@ public:
         }
         std::shared_ptr<data_buffer> buffer_ptr = std::make_shared<data_buffer>();
         buffer_ptr->append_data(data, data_size);
+        
+        async_write(buffer_ptr);
+        return;
+    }
+
+    void async_write(std::shared_ptr<data_buffer> buffer_ptr) {
+        if (!socket_.is_open()) {
+            return;
+        }
         send_buffer_queue_.push(buffer_ptr);
 
         do_write();
-        return;
     }
 
     void async_read() {

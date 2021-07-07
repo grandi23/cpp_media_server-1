@@ -445,8 +445,6 @@ public:
         c1_version_ = read_4bytes(p);
         p += 4;
 
-        log_infof("time:%u, version:0x%08x", c1_time_, c1_version_);
-
         //schema1 first which make ffmpeg happy
         ret = try_schema1(p);
         if (ret != 0) {
@@ -543,12 +541,10 @@ private:
 
         uint8_t* offset_p = p + 764 - sizeof(uint32_t);
         c1_key_offset_ = read_4bytes(offset_p);
-        log_infof("parse key c1_key_offset_:%u", c1_key_offset_);
 
         uint32_t real_offset = calc_valid_key_offset(c1_key_offset_);
         assert(real_offset < (764 - sizeof(uint32_t)));
         key_random0_size_ = real_offset;
-        log_infof("parse key key_random0_size_:%u", key_random0_size_);
         assert(key_random0_size_ < (764 - sizeof(uint32_t)));
         key_random0_ = new char[key_random0_size_];
         memcpy(key_random0_, p, key_random0_size_);
@@ -558,7 +554,6 @@ private:
         p += sizeof(c1_key_data_);
 
         key_random1_size_ = 764 - real_offset - 128 - 4;
-        log_infof("parse key key_random1_size_:%u", key_random1_size_);
         assert(key_random1_size_ < (764 - sizeof(uint32_t)));
         key_random1_ = new char[key_random1_size_];
         memcpy(key_random1_, p, key_random1_size_);
@@ -582,7 +577,6 @@ private:
 
         uint32_t real_offset = calc_valid_digest_offset(c1_digest_offset_);
         digest_random0_size_ = real_offset;
-        log_infof("parse digest digest_random0_size_:%u", digest_random0_size_);
         assert(digest_random0_size_ < (764 - sizeof(uint32_t)));
         digest_random0_ = new char[digest_random0_size_];
         memcpy(digest_random0_, p, digest_random0_size_);
@@ -592,7 +586,6 @@ private:
         p += sizeof(digest_data_);
 
         digest_random1_size_ = 764 - 4 - real_offset - 32;
-        log_infof("parse digest digest_random1_size_:%u", digest_random1_size_);
         assert(digest_random1_size_ < (764 - sizeof(uint32_t)));
         digest_random1_ = new char[digest_random1_size_];
         memcpy(digest_random1_, p, digest_random1_size_);
@@ -646,7 +639,6 @@ private:
         assert(digest_len == 32);
 
         bool is_equal = bytes_is_equal(digest_data_, c1_digest, sizeof(digest_data_));
-        log_infof("c1 digest check return:%d", is_equal);
 
         if (!is_equal) {
             log_info_data((uint8_t*)digest_data_, sizeof(digest_data_), "digest_data");

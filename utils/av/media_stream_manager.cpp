@@ -6,23 +6,26 @@ std::unordered_map<std::string, MEDIA_STREAM_PTR> media_stream_manager::writers_
 
 int media_stream_manager::add_player(av_writer_base* writer_p) {
     std::string key_str = writer_p->get_key();
+    std::string writerid = writer_p->get_writerid();
+
     std::unordered_map<std::string, MEDIA_STREAM_PTR>::iterator iter = writers_map_.find(key_str);
     if (iter == media_stream_manager::writers_map_.end()) {
         MEDIA_STREAM_PTR new_stream_ptr = std::make_shared<media_stream>();
 
-        new_stream_ptr->writer_list_.push_back(writer_p);
+        new_stream_ptr->writer_map_.insert(std::make_pair(writerid, writer_p));
         media_stream_manager::writers_map_.insert(std::make_pair(key_str, new_stream_ptr));
         log_infof("add player request:%s in new writer list", key_str.c_str());
         return 1;
     }
 
     log_infof("add play request:%s", key_str.c_str());
-    iter->second->writer_list_.push_back(writer_p);
-    return iter->second->writer_list_.size();
+    iter->second->writer_map_.insert(std::make_pair(writerid, writer_p));
+    return iter->second->writer_map_.size();
 }
 
 void media_stream_manager::remove_player(av_writer_base* writer_p) {
     std::string key_str = writer_p->get_key();
+    std::string writerid = writer_p->get_writerid();
 
     log_infof("remove player key:%s", key_str.c_str());
     std::unordered_map<std::string, MEDIA_STREAM_PTR>::iterator map_iter = media_stream_manager::writers_map_.find(key_str);
@@ -31,19 +34,12 @@ void media_stream_manager::remove_player(av_writer_base* writer_p) {
         return;
     }
 
-    for (std::list<av_writer_base*>::iterator writer_iter = map_iter->second->writer_list_.begin();
-        writer_iter != map_iter->second->writer_list_.end();
-        writer_iter++)
-    {
-        av_writer_base* temp = *writer_iter;
-        if (((uint64_t)temp) == ((uint64_t)writer_p)) {
-            writer_p->close_writer();
-            map_iter->second->writer_list_.erase(writer_iter);
-            break;
-        }
+    auto writer_iter = map_iter->second->writer_map_.find(writerid);
+    if (writer_iter != map_iter->second->writer_map_.end()) {
+        map_iter->second->writer_map_.erase(writer_iter);
     }
 
-    if (map_iter->second->writer_list_.empty()) {
+    if (map_iter->second->writer_map_.empty()) {
         media_stream_manager::writers_map_.erase(map_iter);
         log_infof("remove player list empty, key:%s", key_str.c_str());
     }
@@ -63,14 +59,14 @@ int media_stream_manager::writer_media_packet(MEDIA_PACKET_PTR pkt_ptr) {
 
     iter->second->cache_.insert_packet(pkt_ptr);
 
-    for (av_writer_base* write_item : iter->second->writer_list_) {
-        if (!write_item->is_inited()) {
-            iter->second->cache_.writer_gop(write_item);
-            write_item->set_init_flag(true);
+    for (auto item : iter->second->writer_map_) {
+        auto writer = item.second;
+        if (!writer->is_inited()) {
+            writer->set_init_flag(true);
+            iter->second->cache_.writer_gop(writer);
         } else {
-            write_item->write_packet(pkt_ptr);
+            writer->write_packet(pkt_ptr);
         }
-        
     }
 
     return 0;

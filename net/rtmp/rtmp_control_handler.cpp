@@ -14,8 +14,8 @@ rtmp_control_handler::~rtmp_control_handler()
 
 int rtmp_control_handler::handle_rtmp_command_message(CHUNK_STREAM_PTR cs_ptr, std::vector<AMF_ITERM*>& amf_vec) {
     int ret = 0;
-    uint8_t* data = (uint8_t*)cs_ptr->chunk_data_.data();
-    int len = (int)cs_ptr->chunk_data_.data_len();
+    uint8_t* data = (uint8_t*)cs_ptr->chunk_data_ptr_->data();
+    int len = (int)cs_ptr->chunk_data_ptr_->data_len();
 
     while (len > 0) {
         AMF_ITERM* amf_item = new AMF_ITERM();
@@ -39,7 +39,6 @@ int rtmp_control_handler::handle_rtmp_command_message(CHUNK_STREAM_PTR cs_ptr, s
 
     cmd_type = item->desc_str_;
 
-    log_infof("**** receive rtmp command type:%s", cmd_type.c_str());
     if (cmd_type == CMD_Connect) {
         ret = handle_rtmp_connect_command(cs_ptr->msg_stream_id_, amf_vec);
     } else if (cmd_type == CMD_CreateStream) {
@@ -212,7 +211,6 @@ int rtmp_control_handler::handle_rtmp_publish_command(uint32_t stream_id, std::v
             }
             case AMF_DATA_TYPE_STRING:
             {
-                log_infof("rtmp publish string:%s", item->desc_str_.c_str());
                 if (stream_name.empty()) {
                     stream_name = item->desc_str_;
                 }
@@ -248,9 +246,9 @@ int rtmp_control_handler::send_rtmp_connect_resp(uint32_t stream_id) {
     set_chunk_size_cs.gen_control_message(RTMP_CONTROL_SET_CHUNK_SIZE, 4, g_config_chunk_size);
     session_->chunk_size_ = g_config_chunk_size;
 
-    session_->rtmp_send(win_size_cs.chunk_all_.data(), win_size_cs.chunk_all_.data_len());
-    session_->rtmp_send(peer_bw_cs.chunk_all_.data(), peer_bw_cs.chunk_all_.data_len());
-    session_->rtmp_send(set_chunk_size_cs.chunk_all_.data(), set_chunk_size_cs.chunk_all_.data_len());
+    session_->rtmp_send(win_size_cs.chunk_all_ptr_);
+    session_->rtmp_send(peer_bw_cs.chunk_all_ptr_);
+    session_->rtmp_send(set_chunk_size_cs.chunk_all_ptr_);
 
     //encode resp amf
     std::unordered_map<std::string, AMF_ITERM*> resp_amf_obj;
@@ -332,12 +330,12 @@ int rtmp_control_handler::send_rtmp_play_resp() {
     //send rtmp control recorded
     chunk_stream ctrl_recorded(session_, 0, 3, chunk_size);
     ctrl_recorded.gen_set_recorded_message();
-    session_->rtmp_send(ctrl_recorded.chunk_all_.data(), ctrl_recorded.chunk_all_.data_len());
+    session_->rtmp_send(ctrl_recorded.chunk_all_ptr_);
 
     //send rtmp control begin
     chunk_stream ctrl_begin(session_, 0, 3, chunk_size);
     ctrl_begin.gen_set_begin_message();
-    session_->rtmp_send(ctrl_begin.chunk_all_.data(), ctrl_begin.chunk_all_.data_len());
+    session_->rtmp_send(ctrl_begin.chunk_all_ptr_);
 
     send_rtmp_play_reset_resp();
     send_rtmp_play_start_resp();
@@ -563,7 +561,7 @@ int rtmp_control_handler::send_rtmp_ack(uint32_t size) {
     if (session_->ack_received_ > session_->remote_window_acksize_) {
         chunk_stream ack(session_, 0, 3, session_->chunk_size_);
         ret += ack.gen_control_message(RTMP_CONTROL_ACK, 4, session_->chunk_size_);
-        session_->rtmp_send(ack.chunk_all_.data(), ack.chunk_all_.data_len());
+        session_->rtmp_send(ack.chunk_all_ptr_);
         session_->ack_received_ = 0;
     }
     return RTMP_OK;
@@ -571,18 +569,18 @@ int rtmp_control_handler::send_rtmp_ack(uint32_t size) {
 
 int rtmp_control_handler::handle_rtmp_control_message(CHUNK_STREAM_PTR cs_ptr) {
     if (cs_ptr->type_id_ == RTMP_CONTROL_SET_CHUNK_SIZE) {
-        if (cs_ptr->chunk_data_.data_len() < 4) {
-            log_errorf("set chunk size control message size error:%d", cs_ptr->chunk_data_.data_len());
+        if (cs_ptr->chunk_data_ptr_->data_len() < 4) {
+            log_errorf("set chunk size control message size error:%d", cs_ptr->chunk_data_ptr_->data_len());
             return -1;
         }
-        session_->chunk_size_ = read_4bytes((uint8_t*)cs_ptr->chunk_data_.data());
+        session_->chunk_size_ = read_4bytes((uint8_t*)cs_ptr->chunk_data_ptr_->data());
         log_infof("update chunk size:%u", session_->chunk_size_);
     } else if (cs_ptr->type_id_ == RTMP_CONTROL_WINDOW_ACK_SIZE) {
-        if (cs_ptr->chunk_data_.data_len() < 4) {
-            log_errorf("window ack size control message size error:%d", cs_ptr->chunk_data_.data_len());
+        if (cs_ptr->chunk_data_ptr_->data_len() < 4) {
+            log_errorf("window ack size control message size error:%d", cs_ptr->chunk_data_ptr_->data_len());
             return -1;
         }
-        session_->remote_window_acksize_ = read_4bytes((uint8_t*)cs_ptr->chunk_data_.data());
+        session_->remote_window_acksize_ = read_4bytes((uint8_t*)cs_ptr->chunk_data_ptr_->data());
         log_infof("update remote window ack size:%u", session_->remote_window_acksize_);
     } else if (cs_ptr->type_id_ == RTMP_CONTROL_ACK) {
         log_debugf("receive rtmp control ack...");

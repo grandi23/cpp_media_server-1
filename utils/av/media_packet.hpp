@@ -37,6 +37,7 @@ class MEDIA_PACKET
 public:
     MEDIA_PACKET()
     {
+        buffer_ptr_ = std::make_shared<data_buffer>();
     }
     ~MEDIA_PACKET()
     {
@@ -55,7 +56,7 @@ public:
     int64_t timestamp_ = 0;
     bool is_key_frame_ = false;
     bool is_seq_hdr_   = false;
-    data_buffer buffer_;
+    std::shared_ptr<data_buffer> buffer_ptr_;
 
 //rtmp info:
 public:
@@ -74,6 +75,7 @@ class av_writer_base
 public:
     virtual int write_packet(MEDIA_PACKET_PTR) = 0;
     virtual std::string get_key() = 0;
+    virtual std::string get_writerid() = 0;
     virtual void close_writer() = 0;
     virtual bool is_inited() = 0;
     virtual void set_init_flag(bool flag) = 0;

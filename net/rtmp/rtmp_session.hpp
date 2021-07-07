@@ -38,6 +38,7 @@ public:
     void try_read(const char* filename, int line);
     data_buffer* get_recv_buffer();
     void rtmp_send(char* data, int len);
+    void rtmp_send(std::shared_ptr<data_buffer> data_ptr);
     std::string get_sesson_key();
     MEDIA_PACKET_PTR get_media_packet(CHUNK_STREAM_PTR cs_ptr);
 

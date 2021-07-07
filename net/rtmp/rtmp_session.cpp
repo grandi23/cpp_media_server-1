@@ -30,6 +30,11 @@ void rtmp_session::rtmp_send(char* data, int len) {
     return;
 }
 
+void rtmp_session::rtmp_send(std::shared_ptr<data_buffer> data_ptr) {
+    session_ptr_->async_write(data_ptr);
+    return;
+}
+
 void rtmp_session::close() {
     if (closed_flag_) {
         return;
@@ -168,7 +173,7 @@ int rtmp_session::receive_chunk_stream() {
         }
 
         //check whether we need to send rtmp control ack
-        (void)send_rtmp_ack(cs_ptr->chunk_data_.data_len());
+        (void)send_rtmp_ack(cs_ptr->chunk_data_ptr_->data_len());
 
         if ((cs_ptr->type_id_ >= RTMP_CONTROL_SET_CHUNK_SIZE) && (cs_ptr->type_id_ <= RTMP_CONTROL_SET_PEER_BANDWIDTH)) {
             ret = ctrl_handler_.handle_rtmp_control_message(cs_ptr);
@@ -183,7 +188,6 @@ int rtmp_session::receive_chunk_stream() {
         } else if (cs_ptr->type_id_ == RTMP_COMMAND_MESSAGES_AMF0) {
             std::vector<AMF_ITERM*> amf_vec;
             ret = ctrl_handler_.handle_rtmp_command_message(cs_ptr, amf_vec);
-            log_infof("handle_rtmp_command_message return %d", ret);
             if (ret < RTMP_OK) {
                 for (auto iter : amf_vec) {
                     AMF_ITERM* temp = iter;
@@ -213,7 +217,7 @@ int rtmp_session::receive_chunk_stream() {
         } else if ((cs_ptr->type_id_ == RTMP_MEDIA_PACKET_VIDEO) || (cs_ptr->type_id_ == RTMP_MEDIA_PACKET_AUDIO)
                 || (cs_ptr->type_id_ == RTMP_COMMAND_MESSAGES_META_DATA0) || (cs_ptr->type_id_ == RTMP_COMMAND_MESSAGES_META_DATA3)) {
             MEDIA_PACKET_PTR pkt_ptr = get_media_packet(cs_ptr);
-            if (pkt_ptr->buffer_.data_len() == 0) {
+            if (pkt_ptr->buffer_ptr_->data_len() == 0) {
                 return -1;
             }
             media_stream_manager::writer_media_packet(pkt_ptr);
@@ -239,11 +243,11 @@ int rtmp_session::receive_chunk_stream() {
 MEDIA_PACKET_PTR rtmp_session::get_media_packet(CHUNK_STREAM_PTR cs_ptr) {
     MEDIA_PACKET_PTR pkt_ptr;
 
-    if (cs_ptr->chunk_data_.data_len() < 2) {
-        log_errorf("rtmp chunk media size:%lu is too small", cs_ptr->chunk_data_.data_len());
+    if (cs_ptr->chunk_data_ptr_->data_len() < 2) {
+        log_errorf("rtmp chunk media size:%lu is too small", cs_ptr->chunk_data_ptr_->data_len());
         return pkt_ptr;
     }
-    uint8_t* p = (uint8_t*)cs_ptr->chunk_data_.data();
+    uint8_t* p = (uint8_t*)cs_ptr->chunk_data_ptr_->data();
 
     pkt_ptr = std::make_shared<MEDIA_PACKET>();
 
@@ -293,7 +297,6 @@ MEDIA_PACKET_PTR rtmp_session::get_media_packet(CHUNK_STREAM_PTR cs_ptr) {
         }
     } else if ((cs_ptr->type_id_ == RTMP_COMMAND_MESSAGES_META_DATA0) || (cs_ptr->type_id_ == RTMP_COMMAND_MESSAGES_META_DATA3)) {
         pkt_ptr->av_type_ = MEDIA_METADATA_TYPE;
-        log_infof("receive rtmp metadata....");
     } else {
         log_warnf("rtmp input unkown media type:%d", cs_ptr->type_id_);
         assert(0);
@@ -301,8 +304,9 @@ MEDIA_PACKET_PTR rtmp_session::get_media_packet(CHUNK_STREAM_PTR cs_ptr) {
     }
 
     pkt_ptr->timestamp_  = cs_ptr->timestamp32_;
-    pkt_ptr->buffer_.reset();
-    pkt_ptr->buffer_.append_data(cs_ptr->chunk_data_.data(), cs_ptr->chunk_data_.data_len());
+    pkt_ptr->buffer_ptr_->reset();
+    pkt_ptr->buffer_ptr_->append_data(cs_ptr->chunk_data_ptr_->data(),
+                                    cs_ptr->chunk_data_ptr_->data_len());
 
     pkt_ptr->app_        = req_.app_;
     pkt_ptr->streamname_ = req_.stream_name_;

@@ -11,13 +11,13 @@
 class rtmp_session;
 class rtmp_request;
 
-typedef std::list<av_writer_base*> WRITER_LIST;
+typedef std::unordered_map<std::string, av_writer_base*> WRITER_MAP;
 
 class media_stream
 {
 public:
     gop_cache cache_;
-    WRITER_LIST writer_list_;
+    WRITER_MAP writer_map_;//(session_key, av_writer_base*)
 };
 
 typedef std::shared_ptr<media_stream> MEDIA_STREAM_PTR;

@@ -6,7 +6,7 @@
 class gop_cache
 {
 public:
-    gop_cache();
+    gop_cache(uint32_t min_gop = 1);
     ~gop_cache();
 
     int insert_packet(MEDIA_PACKET_PTR pkt_ptr);
@@ -17,5 +17,7 @@ private:
     MEDIA_PACKET_PTR video_hdr_;
     MEDIA_PACKET_PTR audio_hdr_;
     MEDIA_PACKET_PTR metadata_hdr_;
+    uint32_t min_gop_ = 1;
+    uint32_t gop_count_ = 0;
 };
 #endif
