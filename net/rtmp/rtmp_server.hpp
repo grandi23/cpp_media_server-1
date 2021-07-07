@@ -21,7 +21,6 @@ protected:
     virtual void on_accept(int ret_code, boost::asio::ip::tcp::socket socket) override;
 
 private:
-    void make_endpoint_string(boost::asio::ip::tcp::endpoint endpoint, std::string& info);
     void start_check_alive_timer();
     void on_check_alive();
 

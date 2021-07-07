@@ -19,6 +19,7 @@ set(CMAKE_PREFIX_PATH "${CMAKE_BINARY_DIR}/output/lib/pkgconfig")
 include_directories(./net
                     ./net/http
                     ./net/rtmp
+                    ./net/websocket
                     ./net/tcp
                     ./utils
                     ./utils/av
@@ -55,6 +56,8 @@ add_executable(rtmp_server_demo
                net/rtmp/rtmp_handshake.cpp
                net/rtmp/chunk_stream.cpp
                net/rtmp/rtmp_writer.cpp
+               net/websocket/ws_server.cpp
+               net/websocket/ws_session.cpp
                utils/logger.cpp
                utils/data_buffer.cpp
                utils/byte_stream.cpp

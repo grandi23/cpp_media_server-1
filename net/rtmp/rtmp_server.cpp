@@ -1,4 +1,5 @@
 #include "rtmp_server.hpp"
+#include "net_pub.hpp"
 
 rtmp_server::rtmp_server(boost::asio::io_context& io_context, uint16_t port):check_alive_timer_(io_context) {
     server_ = std::make_shared<tcp_server>(io_context, port, this);
@@ -49,10 +50,4 @@ void rtmp_server::start_check_alive_timer() {
         }
         this->start_check_alive_timer();
     });
-}
-
-void rtmp_server::make_endpoint_string(boost::asio::ip::tcp::endpoint endpoint, std::string& info) {
-    info = endpoint.address().to_string();
-    info += ":";
-    info += std::to_string(endpoint.port());
 }

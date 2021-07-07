@@ -10,7 +10,7 @@
 #include <stdio.h>
 #include <queue>
 
-#define TCP_DEF_RECV_BUFFER_SIZE (2*1024)
+#define TCP_DEF_RECV_BUFFER_SIZE (8*1024)
 
 class tcp_session_callbackI
 {

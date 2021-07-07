@@ -6,6 +6,7 @@
 #include "http_common.hpp"
 #include "stringex.hpp"
 #include "logger.hpp"
+#include "net_pub.hpp"
 
 #include <stdint.h>
 #include <memory>
@@ -268,13 +269,6 @@ protected://http_callbackI
         }
         
         return handle_func;
-    }
-
-private:
-    void make_endpoint_string(boost::asio::ip::tcp::endpoint endpoint, std::string& info) {
-        info = endpoint.address().to_string();
-        info += ":";
-        info += std::to_string(endpoint.port());
     }
 
 private:
