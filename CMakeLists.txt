@@ -49,6 +49,7 @@ ENDIF ()
 
 add_executable(rtmp_server_demo
                net/rtmp/rtmp_server_demo.cpp
+               net/rtmp/rtmp_server.cpp
                net/rtmp/rtmp_session.cpp
                net/rtmp/rtmp_control_handler.cpp
                net/rtmp/rtmp_handshake.cpp

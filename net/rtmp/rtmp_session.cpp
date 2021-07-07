@@ -10,7 +10,8 @@ rtmp_session::rtmp_session(boost::asio::ip::tcp::socket socket, rtmp_server_call
 }
 
 rtmp_session::~rtmp_session() {
-    log_infof("rtmp session destruct...");
+    log_infof("rtmp session destruct:%s, publisher:%d",
+        req_.key_.c_str(), req_.publish_flag_);
 }
 
 std::string rtmp_session::get_sesson_key() {
@@ -26,13 +27,36 @@ data_buffer* rtmp_session::get_recv_buffer() {
 }
 
 void rtmp_session::rtmp_send(char* data, int len) {
+    send_cout_++;
     session_ptr_->async_write(data, len);
     return;
 }
 
 void rtmp_session::rtmp_send(std::shared_ptr<data_buffer> data_ptr) {
+    send_cout_++;
     session_ptr_->async_write(data_ptr);
     return;
+}
+
+bool rtmp_session::is_alive() {
+    if (req_.publish_flag_) {
+        if (recv_cout_ != last_recv_cout_) {
+            last_recv_cout_ = recv_cout_;
+            not_alive_cout_ = 0;
+            return true;
+        }
+    } else {
+        if (send_cout_ != last_send_cout_) {
+            last_send_cout_ = send_cout_;
+            not_alive_cout_ = 0;
+            return true;
+        }
+    }
+
+    if (not_alive_cout_++ > 4) {
+        return false;
+    }
+    return true;
 }
 
 void rtmp_session::close() {
@@ -44,6 +68,10 @@ void rtmp_session::close() {
     if (req_.is_ready_ && !req_.publish_flag_) {
         if (play_writer_) {
             media_stream_manager::remove_player(play_writer_);
+        }
+    } else {
+        if (!req_.key_.empty()) {
+            media_stream_manager::remove_publisher(req_.key_);
         }
     }
 
@@ -220,6 +248,8 @@ int rtmp_session::receive_chunk_stream() {
             if (pkt_ptr->buffer_ptr_->data_len() == 0) {
                 return -1;
             }
+
+            recv_cout_++;
             media_stream_manager::writer_media_packet(pkt_ptr);
 
             cs_ptr->reset();

@@ -11,45 +11,24 @@
 class rtmp_server : public tcp_server_callbackI, public rtmp_server_callbackI
 {
 public:
-    rtmp_server(boost::asio::io_context& io_context, uint16_t port) {
-        server_ = std::make_shared<tcp_server>(io_context, port, this);
-        server_->accept();
-    }
-    virtual ~rtmp_server() {
-
-    }
+    rtmp_server(boost::asio::io_context& io_context, uint16_t port);
+    virtual ~rtmp_server();
 
 protected:
-    virtual void on_close(std::string session_key) override {
-        log_infof("tcp close key:%s", session_key.c_str());
-        const auto iter = session_ptr_map_.find(session_key);
-        if (iter != session_ptr_map_.end()) {
-            session_ptr_map_.erase(iter);
-        }
-    }
+    virtual void on_close(std::string session_key) override;
 
 protected:
-    virtual void on_accept(int ret_code, boost::asio::ip::tcp::socket socket) override {
-        if (ret_code == 0) {
-            std::string key;
-            make_endpoint_string(socket.remote_endpoint(), key);
-            log_infof("tcp accept key:%s", key.c_str());
-            std::shared_ptr<rtmp_session> session_ptr = std::make_shared<rtmp_session>(std::move(socket), this, key);
-            session_ptr_map_.insert(std::make_pair(key, session_ptr));
-        }
-        server_->accept();
-    }
+    virtual void on_accept(int ret_code, boost::asio::ip::tcp::socket socket) override;
 
 private:
-    void make_endpoint_string(boost::asio::ip::tcp::endpoint endpoint, std::string& info) {
-        info = endpoint.address().to_string();
-        info += ":";
-        info += std::to_string(endpoint.port());
-    }
+    void make_endpoint_string(boost::asio::ip::tcp::endpoint endpoint, std::string& info);
+    void start_check_alive_timer();
+    void on_check_alive();
 
 private:
     std::shared_ptr<tcp_server> server_;
     std::unordered_map< std::string, std::shared_ptr<rtmp_session> > session_ptr_map_;
+    boost::asio::deadline_timer check_alive_timer_;
 };
 
 #endif //RTMP_SERVER_HPP

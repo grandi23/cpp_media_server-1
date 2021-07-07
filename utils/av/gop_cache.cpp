@@ -43,20 +43,20 @@ int gop_cache::insert_packet(MEDIA_PACKET_PTR pkt_ptr) {
 
 void gop_cache::writer_gop(av_writer_base* writer_p) {
     if (metadata_hdr_.get() && metadata_hdr_->buffer_ptr_->data_len() > 0) {
-        log_info_data((uint8_t*)metadata_hdr_->buffer_ptr_->data(),
-                metadata_hdr_->buffer_ptr_->data_len(), "metadata hdr");
+        //log_info_data((uint8_t*)metadata_hdr_->buffer_ptr_->data(),
+        //        metadata_hdr_->buffer_ptr_->data_len(), "metadata hdr");
         writer_p->write_packet(metadata_hdr_);
     }
 
     if (video_hdr_.get() && video_hdr_->buffer_ptr_->data_len() > 0) {
-        log_info_data((uint8_t*)video_hdr_->buffer_ptr_->data(),
-                video_hdr_->buffer_ptr_->data_len(), "video hdr data");
+        //log_info_data((uint8_t*)video_hdr_->buffer_ptr_->data(),
+        //        video_hdr_->buffer_ptr_->data_len(), "video hdr data");
         writer_p->write_packet(video_hdr_);
     }
     
     if (audio_hdr_.get() && audio_hdr_->buffer_ptr_->data_len() > 0) {
-        log_info_data((uint8_t*)audio_hdr_->buffer_ptr_->data(),
-                audio_hdr_->buffer_ptr_->data_len(), "audio hdr data");
+        //log_info_data((uint8_t*)audio_hdr_->buffer_ptr_->data(),
+        //        audio_hdr_->buffer_ptr_->data_len(), "audio hdr data");
         writer_p->write_packet(audio_hdr_);
     }
 

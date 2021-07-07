@@ -16,6 +16,8 @@ typedef std::unordered_map<std::string, av_writer_base*> WRITER_MAP;
 class media_stream
 {
 public:
+    std::string stream_key_;//app/streamname
+    bool publisher_exist_ = false;
     gop_cache cache_;
     WRITER_MAP writer_map_;//(session_key, av_writer_base*)
 };
@@ -27,12 +29,15 @@ class media_stream_manager
 public:
     static int add_player(av_writer_base* writer_p);
     static void remove_player(av_writer_base* writer_p);
-    
+
+    static MEDIA_STREAM_PTR add_publisher(const std::string& stream_key);
+    static void remove_publisher(const std::string& stream_key);
+
 public:
     static int writer_media_packet(MEDIA_PACKET_PTR pkt_ptr);
 
 private:
-    static std::unordered_map<std::string, MEDIA_STREAM_PTR> writers_map_;//key("app/stream"), MEDIA_STREAM_PTR
+    static std::unordered_map<std::string, MEDIA_STREAM_PTR> media_streams_map_;//key("app/stream"), MEDIA_STREAM_PTR
 
 };
 
