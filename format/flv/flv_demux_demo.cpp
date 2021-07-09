@@ -26,7 +26,8 @@ int main(int argn, char** argv) {
         printf("please input: ./flv_demux_demo ./*.flv.\r\n");
         return -1;
     }
-
+    Logger::get_instance()->set_filename("flv_demux.log");
+    
     std::string filename(argv[1]);
 
     log_infof("input flv file:%s", filename.c_str());
@@ -38,7 +39,6 @@ int main(int argn, char** argv) {
         return -1;
     }
 
-    Logger::get_instance()->set_filename("flv_demux.log");
     av_outputer outputer;
     flv_demuxer demuxer(&outputer);
 

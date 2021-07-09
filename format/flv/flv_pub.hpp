@@ -13,6 +13,7 @@
 #define FLV_VIDEO_H264_CODEC 0x07
 #define FLV_VIDEO_H265_CODEC 0x0c
 
+#define FLV_AUDIO_OPUS_CODEC  0x09
 #define FLV_AUDIO_AAC_CODEC  0x0a
 
 #endif

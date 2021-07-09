@@ -73,6 +73,8 @@ int flv_demuxer::input_packet(MEDIA_PACKET_PTR pkt_ptr) {
         output_pkt_ptr->av_type_ = MEDIA_AUDIO_TYPE;
         if (((p[0] & 0xf0) >> 4) == FLV_AUDIO_AAC_CODEC) {
             output_pkt_ptr->codec_type_ = MEDIA_CODEC_AAC;
+        } else if (((p[0] & 0xf0) >> 4) == FLV_AUDIO_OPUS_CODEC) {
+            output_pkt_ptr->codec_type_ = MEDIA_CODEC_OPUS;
         } else {
             is_ready = false;
             log_errorf("does not suport audio codec type:0x%02x", p[0]);
@@ -116,6 +118,7 @@ int flv_demuxer::input_packet(MEDIA_PACKET_PTR pkt_ptr) {
         output_pkt_ptr->buffer_ptr_->append_data((char*)p, tag_data_size_);
         ret = callback_->output_packet(output_pkt_ptr);
     }
+
     buffer_.consume_data(tag_data_size_ + FLV_TAG_PRE_SIZE);
     tag_header_ready_ = false;
     return ret;

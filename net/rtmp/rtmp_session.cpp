@@ -321,6 +321,14 @@ MEDIA_PACKET_PTR rtmp_session::get_media_packet(CHUNK_STREAM_PTR cs_ptr) {
                 pkt_ptr->is_key_frame_ = false;
                 pkt_ptr->is_seq_hdr_   = false;
             }
+        } else if (((p[0] & 0xf0) >> 4) == FLV_AUDIO_OPUS_CODEC) {
+            pkt_ptr->codec_type_ = MEDIA_CODEC_OPUS;
+            if(p[1] == 0x00) {
+                pkt_ptr->is_seq_hdr_ = true;
+            } else if (p[1] == 0x01) {
+                pkt_ptr->is_key_frame_ = false;
+                pkt_ptr->is_seq_hdr_   = false;
+            }
         } else {
             log_errorf("does not support audio codec typeid:%d, 0x%02x", cs_ptr->type_id_, p[0]);
             assert(0);
