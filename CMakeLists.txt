@@ -16,15 +16,18 @@ set(CMAKE_PREFIX_PATH "${CMAKE_BINARY_DIR}/output/lib/pkgconfig")
 
 
 # set include path
-include_directories(./net
+include_directories(./
+                    ./net
                     ./net/http
                     ./net/rtmp
                     ./net/websocket
                     ./net/tcp
+                    ./format
+                    ./format/flv
                     ./utils
                     ./utils/av
                     ${CMAKE_BINARY_DIR}/output/include
-                    /usr/local/include/)
+                    /usr/local/include)
 
 # set lib path
 link_directories(${CMAKE_BINARY_DIR}/output/lib /usr/local/lib64 /usr/local/lib)
@@ -38,6 +41,18 @@ ELSEIF (UNIX)
 target_link_libraries(echo_demo pthread rt dl z m boost_thread boost_system)
 ENDIF ()
 
+add_executable(flv_demux_demo
+            format/flv/flv_demux.cpp
+            format/flv/flv_demux_demo.cpp
+            utils/logger.cpp
+            utils/data_buffer.cpp
+            utils/byte_stream.cpp)
+IF (APPLE)
+target_link_libraries(flv_demux_demo pthread dl z m boost_thread boost_system)
+ELSEIF (UNIX)
+target_link_libraries(flv_demux_demo pthread rt dl z m boost_thread boost_system)
+ENDIF ()
+
 add_executable(http_server_demo
             net/http/http_server_demo.cpp
             utils/data_buffer.cpp
@@ -49,6 +64,7 @@ target_link_libraries(http_server_demo pthread rt dl z m boost_thread boost_syst
 ENDIF ()
 
 add_executable(rtmp_server_demo
+               format/flv/flv_demux.cpp
                net/rtmp/rtmp_server_demo.cpp
                net/rtmp/rtmp_server.cpp
                net/rtmp/rtmp_session.cpp
@@ -58,6 +74,7 @@ add_executable(rtmp_server_demo
                net/rtmp/rtmp_writer.cpp
                net/websocket/ws_server.cpp
                net/websocket/ws_session.cpp
+               net/websocket/av_outputer.cpp
                utils/logger.cpp
                utils/data_buffer.cpp
                utils/byte_stream.cpp

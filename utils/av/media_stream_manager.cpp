@@ -1,6 +1,7 @@
 #include "media_stream_manager.hpp"
 #include "media_packet.hpp"
 #include "logger.hpp"
+#include <sstream>
 
 std::unordered_map<std::string, MEDIA_STREAM_PTR> media_stream_manager::media_streams_map_;
 
@@ -18,7 +19,7 @@ int media_stream_manager::add_player(av_writer_base* writer_p) {
         return 1;
     }
 
-    log_infof("add play request:%s", key_str.c_str());
+    log_infof("add player request:%s", key_str.c_str());
     iter->second->writer_map_.insert(std::make_pair(writerid, writer_p));
     return iter->second->writer_map_.size();
 }
@@ -53,6 +54,7 @@ MEDIA_STREAM_PTR media_stream_manager::add_publisher(const std::string& stream_k
 
     auto iter = media_streams_map_.find(stream_key);
     if (iter == media_streams_map_.end()) {
+        log_infof("add new publisher stream key:%s", stream_key.c_str());
         ret_stream_ptr = std::make_shared<media_stream>();
         ret_stream_ptr->publisher_exist_ = true;
         ret_stream_ptr->stream_key_ = stream_key;

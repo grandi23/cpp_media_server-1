@@ -23,15 +23,6 @@ typedef enum {
     MEDIA_CODEC_MP3
 } MEDIA_CODEC_TYPE;
 
-#define FLV_VIDEO_KEY_FLAG   1
-#define FLV_VIDEO_INTER_FLAG 2
-
-#define FLV_VIDEO_AVC_SEQHDR 0
-#define FLV_VIDEO_AVC_NALU   1
-
-#define FLV_VIDEO_H264_CODEC 0x07
-#define FLV_VIDEO_H265_CODEC 0x0c
-
 class MEDIA_PACKET
 {
 public:

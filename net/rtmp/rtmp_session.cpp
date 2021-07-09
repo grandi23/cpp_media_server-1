@@ -1,4 +1,5 @@
 #include "rtmp_session.hpp"
+#include "flv_pub.hpp"
 #include "rtmp_control_handler.hpp"
 
 rtmp_session::rtmp_session(boost::asio::ip::tcp::socket socket, rtmp_server_callbackI* callback, std::string session_key) : session_key_(session_key)
@@ -312,7 +313,7 @@ MEDIA_PACKET_PTR rtmp_session::get_media_packet(CHUNK_STREAM_PTR cs_ptr) {
         }
     } else if (cs_ptr->type_id_ == RTMP_MEDIA_PACKET_AUDIO) {
         pkt_ptr->av_type_ = MEDIA_AUDIO_TYPE;
-        if ((p[0] & 0xf0) == 0xa0) {
+        if (((p[0] & 0xf0) >> 4) == FLV_AUDIO_AAC_CODEC) {
             pkt_ptr->codec_type_ = MEDIA_CODEC_AAC;
             if(p[1] == 0x00) {
                 pkt_ptr->is_seq_hdr_ = true;
