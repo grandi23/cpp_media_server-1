@@ -294,7 +294,11 @@ MEDIA_PACKET_PTR rtmp_session::get_media_packet(CHUNK_STREAM_PTR cs_ptr) {
             pkt_ptr->codec_type_ = MEDIA_CODEC_H264;
         } else if (codec == FLV_VIDEO_H265_CODEC) {
             pkt_ptr->codec_type_ = MEDIA_CODEC_H265;
-        } else {
+        } else if (codec == FLV_VIDEO_VP8_CODEC) {
+            pkt_ptr->codec_type_ = MEDIA_CODEC_VP8;
+        } else if (codec == FLV_VIDEO_VP9_CODEC) {
+            pkt_ptr->codec_type_ = MEDIA_CODEC_VP9;
+        }  else {
             log_errorf("does not support video codec typeid:%d, 0x%02x", cs_ptr->type_id_, p[0]);
             assert(0);
             return pkt_ptr;

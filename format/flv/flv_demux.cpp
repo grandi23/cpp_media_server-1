@@ -93,6 +93,10 @@ int flv_demuxer::handle_packet() {
             output_pkt_ptr->codec_type_ = MEDIA_CODEC_H264;
         } else if ((p[0]&0x0f) == FLV_VIDEO_H265_CODEC) {
             output_pkt_ptr->codec_type_ = MEDIA_CODEC_H265;
+        } else if ((p[0]&0x0f) == FLV_VIDEO_VP8_CODEC) {
+            output_pkt_ptr->codec_type_ = MEDIA_CODEC_VP8;
+        } else if ((p[0]&0x0f) == FLV_VIDEO_VP9_CODEC) {
+            output_pkt_ptr->codec_type_ = MEDIA_CODEC_VP9;
         } else {
             is_ready = false;
             log_errorf("does not support codec type:0x%02x.", p[0]);

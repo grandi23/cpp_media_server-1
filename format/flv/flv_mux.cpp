@@ -79,6 +79,10 @@ int flv_muxer::input_packet(MEDIA_PACKET_PTR pkt_ptr) {
             header_data[11] |= FLV_VIDEO_H264_CODEC;
         } else if (pkt_ptr->codec_type_ == MEDIA_CODEC_H265) {
             header_data[11] |= FLV_VIDEO_H265_CODEC;
+        } else if (pkt_ptr->codec_type_ == MEDIA_CODEC_VP8) {
+            header_data[11] |= FLV_VIDEO_VP8_CODEC;
+        } else if (pkt_ptr->codec_type_ == MEDIA_CODEC_VP9) {
+            header_data[11] |= FLV_VIDEO_VP9_CODEC;
         } else {
             log_errorf("flv mux unsuport video codec type:%d", pkt_ptr->codec_type_);
             return -1;
@@ -175,7 +179,11 @@ int flv_muxer::add_flv_media_header(MEDIA_PACKET_PTR pkt_ptr) {
             p[0] |= FLV_VIDEO_H264_CODEC;
         } else if (pkt_ptr->codec_type_ == MEDIA_CODEC_H265) {
             p[0] |= FLV_VIDEO_H265_CODEC;
-        } else {
+        } else if (pkt_ptr->codec_type_ == MEDIA_CODEC_VP8) {
+            p[0] |= FLV_VIDEO_VP8_CODEC;
+        } else if (pkt_ptr->codec_type_ == MEDIA_CODEC_VP9) {
+            p[0] |= FLV_VIDEO_VP9_CODEC;
+        }  else {
             log_errorf("unsuport audio codec type:%d", pkt_ptr->codec_type_);
             return -1;
         }
