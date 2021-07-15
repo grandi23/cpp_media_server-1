@@ -23,6 +23,12 @@ typedef enum {
     MEDIA_CODEC_MP3
 } MEDIA_CODEC_TYPE;
 
+typedef enum {
+    MEDIA_FORMAT_UNKOWN = 0,
+    MEDIA_FORMAT_RAW,
+    MEDIA_FORMAT_FLV
+} MEDIA_FORMAT_TYPE;
+
 class MEDIA_PACKET
 {
 public:
@@ -42,9 +48,11 @@ public:
 //    is seq hdr;
 //    media data in bytes;
 public:
-    MEDIA_PKT_TYPE av_type_ = MEDIA_UNKOWN_TYPE;
+    MEDIA_PKT_TYPE av_type_      = MEDIA_UNKOWN_TYPE;
     MEDIA_CODEC_TYPE codec_type_ = MEDIA_CODEC_UNKOWN;
-    int64_t timestamp_ = 0;
+    MEDIA_FORMAT_TYPE fmt_type_  = MEDIA_FORMAT_UNKOWN;
+    int64_t dts_ = 0;
+    int64_t pts_ = 0;
     bool is_key_frame_ = false;
     bool is_seq_hdr_   = false;
     std::shared_ptr<data_buffer> buffer_ptr_;

@@ -61,7 +61,7 @@ void websocket_session::on_read(boost::beast::error_code ec, size_t bytes_transf
         assert(uri_data[0] == 0x02);
         uint16_t str_len = read_2bytes((uint8_t*)uri_data + 1);
         std::string str(uri_data + 3, str_len);
-        int pos = str.find(".flv");
+        std::size_t pos = str.find(".flv");
         if (pos != str.npos) {
             uri_ = str.substr(0, pos);
         }
@@ -81,6 +81,7 @@ void websocket_session::on_read(boost::beast::error_code ec, size_t bytes_transf
     MEDIA_PACKET_PTR pkt_ptr = std::make_shared<MEDIA_PACKET>();
     pkt_ptr->buffer_ptr_->append_data(static_cast<char*>(buffer_.data().data()), bytes_transferred);
     pkt_ptr->key_ = uri_;
+    pkt_ptr->fmt_type_ = MEDIA_FORMAT_FLV;
     demuxer_.input_packet(pkt_ptr);
 
     buffer_.consume(bytes_transferred);

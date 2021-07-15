@@ -7,7 +7,9 @@
 #include <string>
 #include <vector>
 
-#define EXTRA_LEN (100*1024)
+#define EXTRA_LEN (10*1024)
+
+#define PRE_RESERVE_HEADER_SIZE 200
 
 class data_buffer
 {
@@ -17,7 +19,7 @@ public:
 
 public:
     int append_data(const char* input_data, size_t input_len);
-    int consume_data(size_t consume_len);
+    char* consume_data(int consume_len);
     void reset();
 
     char* data();
@@ -25,11 +27,13 @@ public:
     bool require(size_t len);
 
 public:
+    bool sent_flag_     = false;
+
+private:
     char* buffer_       = nullptr;
     size_t buffer_size_ = 0;
     int data_len_       = 0;
-    int start_          = 0;
+    int start_          = PRE_RESERVE_HEADER_SIZE;
     int end_            = 0;
-    bool sent_flag_     = false;
 };
 #endif //DATA_BUFFER_H

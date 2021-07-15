@@ -31,11 +31,16 @@ void rtmp_server::on_accept(int ret_code, boost::asio::ip::tcp::socket socket) {
 }
 
 void rtmp_server::on_check_alive() {
+    std::vector<std::shared_ptr<rtmp_session>> session_vec;
+
     for (auto item : session_ptr_map_) {
         std::shared_ptr<rtmp_session> session_ptr = item.second;
         if (!session_ptr->is_alive()) {
-            session_ptr->close();
+            session_vec.push_back(session_ptr);
         }
+    }
+    for (auto item : session_vec) {
+        item->close();
     }
 }
 

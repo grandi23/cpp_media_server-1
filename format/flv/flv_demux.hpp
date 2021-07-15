@@ -17,6 +17,11 @@ public:
 
 public:
     int input_packet(MEDIA_PACKET_PTR pkt_ptr);
+    bool has_video() {return has_video_;}
+    bool has_audio() {return has_audio_;}
+
+private:
+    int handle_packet();
 
 private:
     av_format_callback* callback_ = nullptr;

@@ -273,6 +273,7 @@ int rtmp_session::receive_chunk_stream() {
 
 MEDIA_PACKET_PTR rtmp_session::get_media_packet(CHUNK_STREAM_PTR cs_ptr) {
     MEDIA_PACKET_PTR pkt_ptr;
+    uint32_t ts_delta = 0;
 
     if (cs_ptr->chunk_data_ptr_->data_len() < 2) {
         log_errorf("rtmp chunk media size:%lu is too small", cs_ptr->chunk_data_ptr_->data_len());
@@ -282,10 +283,12 @@ MEDIA_PACKET_PTR rtmp_session::get_media_packet(CHUNK_STREAM_PTR cs_ptr) {
 
     pkt_ptr = std::make_shared<MEDIA_PACKET>();
 
-    pkt_ptr->typeid_ = cs_ptr->type_id_;
+    pkt_ptr->typeid_   = cs_ptr->type_id_;
+    pkt_ptr->fmt_type_ = MEDIA_FORMAT_RAW;
 
     if (cs_ptr->type_id_ == RTMP_MEDIA_PACKET_VIDEO) {
         uint8_t codec = p[0] & 0x0f;
+
         pkt_ptr->av_type_ = MEDIA_VIDEO_TYPE;
         if (codec == FLV_VIDEO_H264_CODEC) {
             pkt_ptr->codec_type_ = MEDIA_CODEC_H264;
@@ -297,7 +300,7 @@ MEDIA_PACKET_PTR rtmp_session::get_media_packet(CHUNK_STREAM_PTR cs_ptr) {
             return pkt_ptr;
         }
 
-        uint8_t frame_type = (p[0] & 0xf0) >> 4;
+        uint8_t frame_type = p[0] & 0xf0;
         uint8_t nalu_type = p[1];
         if (frame_type == FLV_VIDEO_KEY_FLAG) {
             if (nalu_type == FLV_VIDEO_AVC_SEQHDR) {
@@ -311,9 +314,13 @@ MEDIA_PACKET_PTR rtmp_session::get_media_packet(CHUNK_STREAM_PTR cs_ptr) {
         } else if (frame_type == FLV_VIDEO_INTER_FLAG) {
             pkt_ptr->is_key_frame_ = false;
         }
+
+        ts_delta = read_3bytes(p + 2);
     } else if (cs_ptr->type_id_ == RTMP_MEDIA_PACKET_AUDIO) {
         pkt_ptr->av_type_ = MEDIA_AUDIO_TYPE;
-        if (((p[0] & 0xf0) >> 4) == FLV_AUDIO_AAC_CODEC) {
+        uint8_t frame_type = p[0] & 0xf0;
+
+        if (frame_type == FLV_AUDIO_AAC_CODEC) {
             pkt_ptr->codec_type_ = MEDIA_CODEC_AAC;
             if(p[1] == 0x00) {
                 pkt_ptr->is_seq_hdr_ = true;
@@ -321,7 +328,7 @@ MEDIA_PACKET_PTR rtmp_session::get_media_packet(CHUNK_STREAM_PTR cs_ptr) {
                 pkt_ptr->is_key_frame_ = false;
                 pkt_ptr->is_seq_hdr_   = false;
             }
-        } else if (((p[0] & 0xf0) >> 4) == FLV_AUDIO_OPUS_CODEC) {
+        } else if (frame_type == FLV_AUDIO_OPUS_CODEC) {
             pkt_ptr->codec_type_ = MEDIA_CODEC_OPUS;
             if(p[1] == 0x00) {
                 pkt_ptr->is_seq_hdr_ = true;
@@ -342,10 +349,13 @@ MEDIA_PACKET_PTR rtmp_session::get_media_packet(CHUNK_STREAM_PTR cs_ptr) {
         return pkt_ptr;
     }
 
-    pkt_ptr->timestamp_  = cs_ptr->timestamp32_;
+    if (ts_delta > 500) {
+        log_warnf("video ts_delta error:%u", ts_delta);
+    }
+    pkt_ptr->dts_  = cs_ptr->timestamp32_;
+    pkt_ptr->pts_  = pkt_ptr->dts_ + ts_delta;
     pkt_ptr->buffer_ptr_->reset();
-    pkt_ptr->buffer_ptr_->append_data(cs_ptr->chunk_data_ptr_->data(),
-                                    cs_ptr->chunk_data_ptr_->data_len());
+    pkt_ptr->buffer_ptr_->append_data(cs_ptr->chunk_data_ptr_->data(), cs_ptr->chunk_data_ptr_->data_len());
 
     pkt_ptr->app_        = req_.app_;
     pkt_ptr->streamname_ = req_.stream_name_;

@@ -61,7 +61,7 @@ int rtmp_handshake::handle_c0c1() {
     if (!session_->recv_buffer_.require(c0_size + c1_size)) {
         return RTMP_NEED_READ_MORE;
     }
-    return parse_c0c1(session_->recv_buffer_.buffer_);
+    return parse_c0c1(session_->recv_buffer_.data());
 }
 
 int rtmp_handshake::handle_c2() {

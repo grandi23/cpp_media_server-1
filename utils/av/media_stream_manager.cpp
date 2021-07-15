@@ -19,7 +19,8 @@ int media_stream_manager::add_player(av_writer_base* writer_p) {
         return 1;
     }
 
-    log_infof("add player request:%s", key_str.c_str());
+    log_infof("add player request:%s, stream_p:%p",
+        key_str.c_str(), (void*)iter->second.get());
     iter->second->writer_map_.insert(std::make_pair(writerid, writer_p));
     return iter->second->writer_map_.size();
 }
@@ -54,15 +55,16 @@ MEDIA_STREAM_PTR media_stream_manager::add_publisher(const std::string& stream_k
 
     auto iter = media_streams_map_.find(stream_key);
     if (iter == media_streams_map_.end()) {
-        log_infof("add new publisher stream key:%s", stream_key.c_str());
         ret_stream_ptr = std::make_shared<media_stream>();
         ret_stream_ptr->publisher_exist_ = true;
         ret_stream_ptr->stream_key_ = stream_key;
+        log_infof("add new publisher stream key:%s, stream_p:%p",
+            stream_key.c_str(), (void*)ret_stream_ptr.get());
         media_streams_map_.insert(std::make_pair(stream_key, ret_stream_ptr));
         return ret_stream_ptr;
     }
-
     ret_stream_ptr = iter->second;
+    ret_stream_ptr->publisher_exist_ = true;
     return ret_stream_ptr;
 }
 
@@ -95,7 +97,8 @@ int media_stream_manager::writer_media_packet(MEDIA_PACKET_PTR pkt_ptr) {
         auto writer = item.second;
         if (!writer->is_inited()) {
             writer->set_init_flag(true);
-            log_infof("writer gop cache...");
+            log_infof("writer gop cache:%p, stream_p:%p",
+                (void*)&(stream_ptr->cache_), (void*)stream_ptr.get());
             stream_ptr->cache_.writer_gop(writer);
         } else {
             writer->write_packet(pkt_ptr);
