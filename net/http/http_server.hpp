@@ -67,17 +67,16 @@ public://http_session_interface
 protected://tcp_session_callbackI
     virtual void on_write(int ret_code, size_t sent_size) override {
         log_infof("writen return code:%d, sent len:%lu, buffer len:%d",
-            ret_code, sent_size, send_data_.data_len_);
+            ret_code, sent_size, send_data_.data_len());
 
-        assert(send_data_.data_len_ >= (int)sent_size);
+        assert(send_data_.data_len() >= sent_size);
 
-        if (send_data_.data_len_ >= (int)sent_size) {
-            send_data_.data_len_ -= sent_size;
-            send_data_.start_    += sent_size;
+        if (send_data_.data_len() >= sent_size) {
+            send_data_.consume_data(sent_size);
         }
         
-        if (send_data_.data_len_ > 0) {
-            session_ptr_->async_write(send_data_.buffer_ + send_data_.start_, send_data_.data_len_);
+        if (send_data_.data_len() > 0) {
+            session_ptr_->async_write(send_data_.data(), send_data_.data_len());
             return;
         }
         close();
@@ -96,8 +95,8 @@ protected://tcp_session_callbackI
                 try_read();
                 return;
             }
-            char* start = header_data_.buffer_ + content_start_;
-            int len     = header_data_.data_len_ - content_start_;
+            char* start = header_data_.data() + content_start_;
+            int len     = header_data_.data_len() - content_start_;
             content_data_.append_data(start, len);
         } else {
             content_data_.append_data(data, data_size);
@@ -116,7 +115,7 @@ protected://tcp_session_callbackI
             return;
         }
 
-        if (content_data_.data_len_ >= request_.content_length_) {
+        if ((int)content_data_.data_len() >= request_.content_length_) {
             HTTP_HANDLE_Ptr handle_ptr = callback_->get_handle(&request_);
             if (!handle_ptr) {
                 close();
@@ -124,7 +123,7 @@ protected://tcp_session_callbackI
             }
             //call handle
             std::shared_ptr<http_response> response_ptr = std::make_shared<http_response>(this);
-            request_.content_body_ = content_data_.buffer_;
+            request_.content_body_ = content_data_.data();
             handle_ptr(&request_, response_ptr);
 
             return;
@@ -137,7 +136,7 @@ protected://tcp_session_callbackI
 
 private:
     int analyze_header() {
-        std::string info(header_data_.buffer_, header_data_.data_len_);
+        std::string info(header_data_.data(), header_data_.data_len());
 
         size_t pos = info.find("\r\n\r\n");
         if (pos == info.npos) {
@@ -147,7 +146,7 @@ private:
         content_start_ = (int)pos + 4;
         header_is_ready_ = true;
 
-        std::string header_str(header_data_.buffer_, pos);
+        std::string header_str(header_data_.data(), pos);
         std::vector<std::string> header_vec;
 
         string_split(header_str, "\r\n", header_vec);

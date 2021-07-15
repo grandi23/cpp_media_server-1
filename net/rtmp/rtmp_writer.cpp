@@ -1,6 +1,7 @@
 #include "rtmp_writer.hpp"
 #include "chunk_stream.hpp"
 #include "rtmp_session.hpp"
+#include "flv_pub.hpp"
 #include "logger.hpp"
 #include <stdio.h>
 
@@ -13,11 +14,10 @@ rtmp_writer::~rtmp_writer()
 {
 
 }
-
 int rtmp_writer::write_packet(MEDIA_PACKET_PTR pkt_ptr) {
     uint16_t csid;
     uint8_t  type_id;
-    
+
     if (pkt_ptr->av_type_ == MEDIA_VIDEO_TYPE) {
         csid = 6;
         type_id = RTMP_MEDIA_PACKET_VIDEO;
@@ -31,9 +31,8 @@ int rtmp_writer::write_packet(MEDIA_PACKET_PTR pkt_ptr) {
         log_errorf("doesn't support av type:%d", (int)pkt_ptr->av_type_);
         return -1;
     }
-
     write_data_by_chunk_stream(session_, csid,
-                    pkt_ptr->timestamp_, type_id,
+                    pkt_ptr->dts_, type_id,
                     pkt_ptr->streamid_, session_->chunk_size_,
                     pkt_ptr->buffer_ptr_);
     return RTMP_OK;

@@ -82,9 +82,10 @@ inline void snprintbuffer(char* buffer, size_t size, const char* fmt, ...) {
 inline void log_info_data(const uint8_t* data, int len, const char* dscr) {
     char print_data[10*1024];
     size_t print_len = 0;
+    const int max_print = 64;
 
     print_len += snprintf(print_data, sizeof(print_data), "%s:", dscr);
-    for (size_t index = 0; index < (len > 64 ? 64 : len); index++) {
+    for (int index = 0; index < (len > max_print ? max_print : len); index++) {
         if ((index%16) == 0) {
             print_len += snprintf(print_data + print_len, sizeof(print_data) - print_len, "\r\n");
         }

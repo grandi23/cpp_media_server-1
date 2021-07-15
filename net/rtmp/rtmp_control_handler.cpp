@@ -65,13 +65,14 @@ int rtmp_control_handler::handle_rtmp_connect_command(uint32_t stream_id, std::v
     }
 
     double transactionId = 0;
-    for (int index = 1; index < amf_vec.size(); index++) {
+    for (int index = 1; index < (int)amf_vec.size(); index++) {
         AMF_ITERM* item = amf_vec[index];
         switch (item->get_amf_type())
         {
             case AMF_DATA_TYPE_NUMBER:
             {
                 transactionId = item->number_;
+                log_debugf("rtmp transactionId:%f", transactionId);
                 break;
             }
             case AMF_DATA_TYPE_OBJECT:
@@ -121,7 +122,7 @@ int rtmp_control_handler::handle_rtmp_createstream_command(uint32_t stream_id, s
     double transactionId = 0;
     
     session_->req_.stream_id_ = stream_id;
-    for (int index = 1; index < amf_vec.size(); index++) {
+    for (int index = 1; index < (int)amf_vec.size(); index++) {
         AMF_ITERM* item = amf_vec[index];
         switch (item->get_amf_type())
         {
@@ -152,7 +153,7 @@ int rtmp_control_handler::handle_rtmp_play_command(uint32_t stream_id, std::vect
     }
     double transactionId = 0;
     std::string stream_name;
-    for (int index = 1; index < amf_vec.size(); index++) {
+    for (int index = 1; index < (int)amf_vec.size(); index++) {
         AMF_ITERM* item = amf_vec[index];
         switch (item->get_amf_type())
         {
@@ -198,7 +199,7 @@ int rtmp_control_handler::handle_rtmp_publish_command(uint32_t stream_id, std::v
     }
     double transactionId = 0;
     std::string stream_name;
-    for (int index = 1; index < amf_vec.size(); index++) {
+    for (int index = 1; index < (int)amf_vec.size(); index++) {
         AMF_ITERM* item = amf_vec[index];
         switch (item->get_amf_type())
         {

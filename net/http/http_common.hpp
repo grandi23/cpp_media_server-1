@@ -69,7 +69,7 @@ public:
         }
         send_buffer_.append_data(data, len);
 
-        session_->write(send_buffer_.buffer_, send_buffer_.data_len_);
+        session_->write(send_buffer_.data(), send_buffer_.data_len());
     }
 
 private:

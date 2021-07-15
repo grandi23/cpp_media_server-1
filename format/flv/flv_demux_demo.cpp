@@ -13,7 +13,8 @@ public:
 
         ss << "av type:" << pkt_ptr->av_type_ << ", codec type:" << pkt_ptr->codec_type_
            << ", is key:" << pkt_ptr->is_key_frame_ << ", is seqhdr:" << pkt_ptr->is_seq_hdr_
-           << ", timestamp:" << pkt_ptr->timestamp_ << ", stream key:" << pkt_ptr->key_
+           << ", dts:" << pkt_ptr->dts_ << ", pts:" << pkt_ptr->pts_
+           << ", stream key:" << pkt_ptr->key_
            << ", data len:" << pkt_ptr->buffer_ptr_->data_len();
         
         log_info_data((uint8_t*)pkt_ptr->buffer_ptr_->data(), pkt_ptr->buffer_ptr_->data_len(), ss.str().c_str());
@@ -44,10 +45,12 @@ int main(int argn, char** argv) {
 
     char buffer[2048];
     int n = 0;
+
     do
     {
         n = fread(buffer, 1, sizeof(buffer), fh_p);
         MEDIA_PACKET_PTR pkt_ptr = std::make_shared<MEDIA_PACKET>();
+        pkt_ptr->fmt_type_ = MEDIA_FORMAT_FLV;
         pkt_ptr->key_ = "live/1000";
         pkt_ptr->buffer_ptr_->append_data(buffer, n);
 

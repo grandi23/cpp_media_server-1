@@ -53,6 +53,19 @@ ELSEIF (UNIX)
 target_link_libraries(flv_demux_demo pthread rt dl z m boost_thread boost_system)
 ENDIF ()
 
+add_executable(flv_mux_demo
+            format/flv/flv_mux.cpp
+            format/flv/flv_demux.cpp
+            format/flv/flv_mux_demo.cpp
+            utils/logger.cpp
+            utils/data_buffer.cpp
+            utils/byte_stream.cpp)
+IF (APPLE)
+target_link_libraries(flv_mux_demo pthread dl z m boost_thread boost_system)
+ELSEIF (UNIX)
+target_link_libraries(flv_mux_demo pthread rt dl z m boost_thread boost_system)
+ENDIF ()
+
 add_executable(http_server_demo
             net/http/http_server_demo.cpp
             utils/data_buffer.cpp
@@ -65,6 +78,7 @@ ENDIF ()
 
 add_executable(rtmp_server_demo
                format/flv/flv_demux.cpp
+               format/flv/flv_mux.cpp
                net/rtmp/rtmp_server_demo.cpp
                net/rtmp/rtmp_server.cpp
                net/rtmp/rtmp_session.cpp
