@@ -10,7 +10,7 @@ public:
     ~gop_cache();
 
     int insert_packet(MEDIA_PACKET_PTR pkt_ptr);
-    void writer_gop(av_writer_base* writer_p);
+    int writer_gop(av_writer_base* writer_p);
 
 private:
     std::list<MEDIA_PACKET_PTR> packet_list;

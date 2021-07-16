@@ -70,7 +70,7 @@ private:
                     self->do_write();
                     return;
                 }
-
+                log_infof("tcp write callback error:%s", ec.message().c_str());
                 if (self->callback_) {
                     self->callback_->on_write(-1, written_size);
                 }
@@ -127,6 +127,7 @@ public:
 
     void close() {
         if (socket_.is_open()) {
+            log_infof("tcp close...");
             socket_.close();
         }
         callback_ = nullptr;

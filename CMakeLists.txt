@@ -14,7 +14,6 @@ SET(LIBRARY_OUTPUT_PATH ${CMAKE_BINARY_DIR}/output/lib)
 # set pkgconfig path
 set(CMAKE_PREFIX_PATH "${CMAKE_BINARY_DIR}/output/lib/pkgconfig")
 
-
 # set include path
 include_directories(./
                     ./net
@@ -22,6 +21,7 @@ include_directories(./
                     ./net/rtmp
                     ./net/websocket
                     ./net/tcp
+                    ./net/httpflv
                     ./format
                     ./format/flv
                     ./utils
@@ -68,6 +68,8 @@ ENDIF ()
 
 add_executable(http_server_demo
             net/http/http_server_demo.cpp
+            net/http/http_server.cpp
+            net/http/http_session.cpp
             utils/data_buffer.cpp
             utils/logger.cpp)
 IF (APPLE)
@@ -76,10 +78,12 @@ ELSEIF (UNIX)
 target_link_libraries(http_server_demo pthread rt dl z m boost_thread boost_system)
 ENDIF ()
 
-add_executable(rtmp_server_demo
+add_executable(media_server
                format/flv/flv_demux.cpp
                format/flv/flv_mux.cpp
-               net/rtmp/rtmp_server_demo.cpp
+               net/http/http_session.cpp
+               net/http/http_server.cpp
+               net/rtmp/media_server.cpp
                net/rtmp/rtmp_server.cpp
                net/rtmp/rtmp_session.cpp
                net/rtmp/rtmp_control_handler.cpp
@@ -89,13 +93,15 @@ add_executable(rtmp_server_demo
                net/websocket/ws_server.cpp
                net/websocket/ws_session.cpp
                net/websocket/av_outputer.cpp
+               net/httpflv/httpflv_server.cpp
+               net/httpflv/httpflv_writer.cpp
                utils/logger.cpp
                utils/data_buffer.cpp
                utils/byte_stream.cpp
                utils/av/media_stream_manager.cpp
                utils/av/gop_cache.cpp)
 IF (APPLE)
-target_link_libraries(rtmp_server_demo pthread dl z m ssl crypto boost_thread boost_system)
+target_link_libraries(media_server pthread dl z m ssl crypto boost_thread boost_system)
 ELSEIF (UNIX)
-target_link_libraries(rtmp_server_demo pthread rt dl z m ssl crypto boost_thread boost_system)
+target_link_libraries(media_server pthread rt dl z m ssl crypto boost_thread boost_system)
 ENDIF ()

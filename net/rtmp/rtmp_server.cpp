@@ -1,10 +1,12 @@
 #include "rtmp_server.hpp"
 #include "net_pub.hpp"
+#include "timer.hpp"
 
-rtmp_server::rtmp_server(boost::asio::io_context& io_context, uint16_t port):check_alive_timer_(io_context) {
+rtmp_server::rtmp_server(boost::asio::io_context& io_context, uint16_t port):timer_interface(io_context, 5000)
+{
     server_ = std::make_shared<tcp_server>(io_context, port, this);
     server_->accept();
-    start_check_alive_timer();
+    start_timer();
 }
 
 rtmp_server::~rtmp_server() {
@@ -30,6 +32,10 @@ void rtmp_server::on_accept(int ret_code, boost::asio::ip::tcp::socket socket) {
     server_->accept();
 }
 
+void rtmp_server::on_timer() {
+    on_check_alive();
+}
+
 void rtmp_server::on_check_alive() {
     std::vector<std::shared_ptr<rtmp_session>> session_vec;
 
@@ -42,17 +48,4 @@ void rtmp_server::on_check_alive() {
     for (auto item : session_vec) {
         item->close();
     }
-}
-
-void rtmp_server::start_check_alive_timer() {
-    check_alive_timer_.expires_from_now(boost::posix_time::seconds(5));
-    check_alive_timer_.async_wait([this](const boost::system::error_code& ec) {
-        if(!ec) {
-            this->on_check_alive();
-        } else {
-            log_errorf("check alive error:%s, value:%d",
-                ec.message().c_str(), ec.value())
-        }
-        this->start_check_alive_timer();
-    });
 }

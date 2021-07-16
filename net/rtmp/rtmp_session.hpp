@@ -12,6 +12,7 @@
 #include "amf/afm0.hpp"
 #include "rtmp_writer.hpp"
 #include "media_packet.hpp"
+#include "session_aliver.hpp"
 #include <memory>
 #include <stdint.h>
 #include <unordered_map>
@@ -23,7 +24,7 @@ public:
     virtual void on_close(std::string session_key) = 0;
 };
 
-class rtmp_session : public tcp_session_callbackI
+class rtmp_session : public tcp_session_callbackI, public session_aliver
 {
 friend class rtmp_control_handler;
 friend class rtmp_handshake;
@@ -41,7 +42,6 @@ public:
     void rtmp_send(std::shared_ptr<data_buffer> data_ptr);
     std::string get_sesson_key();
     MEDIA_PACKET_PTR get_media_packet(CHUNK_STREAM_PTR cs_ptr);
-    bool is_alive();
 
 public:
     void close();
@@ -82,13 +82,6 @@ private:
     rtmp_control_handler ctrl_handler_;
     rtmp_writer* play_writer_ = nullptr;
     bool closed_flag_ = false;
-
-private:
-    int not_alive_cout_      = 0;
-    uint64_t send_cout_      = 0;
-    uint64_t last_send_cout_ = 0;
-    uint64_t recv_cout_      = 0;
-    uint64_t last_recv_cout_ = 0;
 };
 
 #endif

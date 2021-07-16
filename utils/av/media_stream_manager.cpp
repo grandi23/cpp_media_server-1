@@ -2,6 +2,7 @@
 #include "media_packet.hpp"
 #include "logger.hpp"
 #include <sstream>
+#include <vector>
 
 std::unordered_map<std::string, MEDIA_STREAM_PTR> media_stream_manager::media_streams_map_;
 
@@ -40,7 +41,6 @@ void media_stream_manager::remove_player(av_writer_base* writer_p) {
     if (writer_iter != map_iter->second->writer_map_.end()) {
         map_iter->second->writer_map_.erase(writer_iter);
     }
-
     
     if (map_iter->second->writer_map_.empty() && !map_iter->second->publisher_exist_) {
         //playlist is empty and the publisher does not exist
@@ -92,6 +92,7 @@ int media_stream_manager::writer_media_packet(MEDIA_PACKET_PTR pkt_ptr) {
     }
 
     stream_ptr->cache_.insert_packet(pkt_ptr);
+    std::vector<av_writer_base*> remove_list;
 
     for (auto item : stream_ptr->writer_map_) {
         auto writer = item.second;
@@ -99,10 +100,23 @@ int media_stream_manager::writer_media_packet(MEDIA_PACKET_PTR pkt_ptr) {
             writer->set_init_flag(true);
             log_infof("writer gop cache:%p, stream_p:%p",
                 (void*)&(stream_ptr->cache_), (void*)stream_ptr.get());
-            stream_ptr->cache_.writer_gop(writer);
+            if (stream_ptr->cache_.writer_gop(writer) < 0) {
+                remove_list.push_back(writer);
+            }
         } else {
-            writer->write_packet(pkt_ptr);
+            if (writer->write_packet(pkt_ptr) < 0) {
+                std::string key_str = writer->get_key();
+                std::string writerid = writer->get_writerid();
+
+                log_warnf("writer send packet error, key:%s, id:%s",
+                        key_str.c_str(), writerid.c_str());
+                remove_list.push_back(writer);
+            }
         }
+    }
+
+    for (auto write_p : remove_list) {
+        remove_player(write_p);
     }
 
     return 0;

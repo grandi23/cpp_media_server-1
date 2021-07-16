@@ -47,7 +47,6 @@ std::string rtmp_writer::get_writerid() {
 }
 
 void rtmp_writer::close_writer() {
-
     delete this;
 }
 

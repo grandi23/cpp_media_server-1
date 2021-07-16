@@ -4,15 +4,19 @@
 #include "rtmp_pub.hpp"
 #include "tcp_server.hpp"
 #include "logger.hpp"
+#include "timer.hpp"
 #include <unordered_map>
 #include <ctime>
 #include <chrono>
 
-class rtmp_server : public tcp_server_callbackI, public rtmp_server_callbackI
+class rtmp_server : public tcp_server_callbackI, public rtmp_server_callbackI, public timer_interface
 {
 public:
     rtmp_server(boost::asio::io_context& io_context, uint16_t port);
     virtual ~rtmp_server();
+
+public:
+    virtual void on_timer();
 
 protected:
     virtual void on_close(std::string session_key) override;
@@ -21,13 +25,11 @@ protected:
     virtual void on_accept(int ret_code, boost::asio::ip::tcp::socket socket) override;
 
 private:
-    void start_check_alive_timer();
     void on_check_alive();
 
 private:
     std::shared_ptr<tcp_server> server_;
     std::unordered_map< std::string, std::shared_ptr<rtmp_session> > session_ptr_map_;
-    boost::asio::deadline_timer check_alive_timer_;
 };
 
 #endif //RTMP_SERVER_HPP
