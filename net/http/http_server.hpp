@@ -36,7 +36,7 @@ public:
     void add_post_handle(const std::string uri, HTTP_HANDLE_Ptr handle_func);
 
 public:
-    virtual void on_timer();
+    virtual void on_timer() override;
 
 protected://tcp_server_callbackI
     virtual void on_accept(int ret_code, boost::asio::ip::tcp::socket socket) override;

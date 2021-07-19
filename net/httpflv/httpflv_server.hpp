@@ -12,7 +12,7 @@ public:
     static void httpflv_writer_close(const std::string& id);
 
 public:
-    virtual void on_timer();
+    virtual void on_timer() override;
 
 private:
     void run();

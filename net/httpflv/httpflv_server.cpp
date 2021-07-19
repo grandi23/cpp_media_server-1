@@ -34,8 +34,8 @@ void httpflv_handle(const http_request* request, std::shared_ptr<http_response> 
     return;
 }
 
-httpflv_server::httpflv_server(boost::asio::io_context& io_ctx, uint16_t port):server_(io_ctx, port)
-    , timer_interface(io_ctx, 5000)
+httpflv_server::httpflv_server(boost::asio::io_context& io_ctx, uint16_t port):timer_interface(io_ctx, 5000)
+    , server_(io_ctx, port)
 {
     run();
     start_timer();

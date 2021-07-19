@@ -30,11 +30,6 @@ private:
     bool has_audio_ = true;
     bool flv_header_ready_ = false;
     bool closed_flag_ = false;
-
-private:
-    uint64_t sent_bytes_ = 0;
-    uint64_t last_sent_bytes_ = 0;
-    int not_live_cnt_ = 0;
 };
 
 #endif

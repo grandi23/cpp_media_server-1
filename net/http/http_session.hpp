@@ -54,13 +54,6 @@ private:
     bool header_is_ready_ = false;
     bool is_closed_ = false;
     boost::asio::ip::tcp::endpoint remote_endpoint_;
-
-private:
-    uint64_t sent_cnt_ = 0;
-    uint64_t last_sent_cnt_ = 0;
-    uint64_t recv_cnt_ = 0;
-    uint64_t last_recv_cnt_ = 0;
-    int not_alive_cnt = 0;
 };
 
 #endif
