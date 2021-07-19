@@ -98,8 +98,6 @@ int media_stream_manager::writer_media_packet(MEDIA_PACKET_PTR pkt_ptr) {
         auto writer = item.second;
         if (!writer->is_inited()) {
             writer->set_init_flag(true);
-            log_infof("writer gop cache:%p, stream_p:%p",
-                (void*)&(stream_ptr->cache_), (void*)stream_ptr.get());
             if (stream_ptr->cache_.writer_gop(writer) < 0) {
                 remove_list.push_back(writer);
             }
@@ -107,7 +105,6 @@ int media_stream_manager::writer_media_packet(MEDIA_PACKET_PTR pkt_ptr) {
             if (writer->write_packet(pkt_ptr) < 0) {
                 std::string key_str = writer->get_key();
                 std::string writerid = writer->get_writerid();
-
                 log_warnf("writer send packet error, key:%s, id:%s",
                         key_str.c_str(), writerid.c_str());
                 remove_list.push_back(writer);

@@ -16,7 +16,7 @@ public:
     virtual ~rtmp_server();
 
 public:
-    virtual void on_timer();
+    virtual void on_timer() override;
 
 protected:
     virtual void on_close(std::string session_key) override;

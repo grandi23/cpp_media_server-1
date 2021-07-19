@@ -85,9 +85,7 @@ public:
 
     void set_close(bool flag) {
         is_close_ = flag;
-        log_infof("set close start...");
         session_ = nullptr;
-        log_infof("set close end...");
     }
 
 private:
