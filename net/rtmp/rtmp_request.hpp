@@ -24,7 +24,7 @@ public:
     std::string flash_ver_;
     std::string stream_name_;
     std::string key_;//app/streamname
-    int64_t transaction_id_ = 0;
+    int64_t transaction_id_ = 1;
     uint32_t stream_id_ = 0;
 };
 

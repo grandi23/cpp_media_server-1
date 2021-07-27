@@ -1,11 +1,11 @@
 #include "rtmp_writer.hpp"
 #include "chunk_stream.hpp"
-#include "rtmp_session.hpp"
+#include "rtmp_server_session.hpp"
 #include "flv_pub.hpp"
 #include "logger.hpp"
 #include <stdio.h>
 
-rtmp_writer::rtmp_writer(rtmp_session* session):session_(session)
+rtmp_writer::rtmp_writer(rtmp_server_session* session):session_(session)
 {
 
 }
@@ -33,7 +33,7 @@ int rtmp_writer::write_packet(MEDIA_PACKET_PTR pkt_ptr) {
     }
     write_data_by_chunk_stream(session_, csid,
                     pkt_ptr->dts_, type_id,
-                    pkt_ptr->streamid_, session_->chunk_size_,
+                    pkt_ptr->streamid_, session_->get_chunk_size(),
                     pkt_ptr->buffer_ptr_);
     return RTMP_OK;
 }

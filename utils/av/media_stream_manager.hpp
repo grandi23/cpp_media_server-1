@@ -8,7 +8,7 @@
 #include <memory>
 #include <list>
 
-class rtmp_session;
+class rtmp_server_session;
 class rtmp_request;
 
 typedef std::unordered_map<std::string, av_writer_base*> WRITER_MAP;

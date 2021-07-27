@@ -1,6 +1,6 @@
 #ifndef RTMP_SERVER_HPP
 #define RTMP_SERVER_HPP
-#include "rtmp_session.hpp"
+#include "rtmp_server_session.hpp"
 #include "rtmp_pub.hpp"
 #include "tcp_server.hpp"
 #include "logger.hpp"
@@ -29,7 +29,7 @@ private:
 
 private:
     std::shared_ptr<tcp_server> server_;
-    std::unordered_map< std::string, std::shared_ptr<rtmp_session> > session_ptr_map_;
+    std::unordered_map< std::string, std::shared_ptr<rtmp_server_session> > session_ptr_map_;
 };
 
 #endif //RTMP_SERVER_HPP

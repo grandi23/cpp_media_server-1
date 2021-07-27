@@ -1,22 +1,23 @@
 #include "rtmp_handshake.hpp"
-#include "rtmp_session.hpp"
+#include "rtmp_client_session.hpp"
+#include "rtmp_server_session.hpp"
 
-rtmp_handshake::rtmp_handshake(rtmp_session* session):session_(session)
+rtmp_server_handshake::rtmp_server_handshake(rtmp_server_session* session):session_(session)
 {
 }
 
-rtmp_handshake::~rtmp_handshake()
+rtmp_server_handshake::~rtmp_server_handshake()
 {
 }
 
-int rtmp_handshake::parse_c0c1(char* c0c1) {
+int rtmp_server_handshake::parse_c0c1(char* c0c1) {
     c0_version_ = c0c1[0];
     log_infof("handshake version:%d", c0_version_);
 
     return c1s1_.parse_c1(c0c1 + 1, (size_t)1536);
 }
 
-char* rtmp_handshake::make_s1_data(int& s1_len) {
+char* rtmp_server_handshake::make_s1_data(int& s1_len) {
     int ret = c1s1_.make_s1((char*)s1_body_);
     
     if (ret != 0) {
@@ -28,7 +29,7 @@ char* rtmp_handshake::make_s1_data(int& s1_len) {
     return s1_body_;
 }
 
-char* rtmp_handshake::make_s2_data(int& s2_len) {
+char* rtmp_server_handshake::make_s2_data(int& s2_len) {
     int ret;
     
     ret = c2s2_.create_by_digest(c1s1_.get_c1_digest());
@@ -46,15 +47,15 @@ char* rtmp_handshake::make_s2_data(int& s2_len) {
     return s2_body_;
 };
 
-uint32_t rtmp_handshake::get_c1_time() {
+uint32_t rtmp_server_handshake::get_c1_time() {
     return c1s1_.get_c1_time();
 }
 
-char* rtmp_handshake::get_c1_data() {
+char* rtmp_server_handshake::get_c1_data() {
     return c1s1_.get_c1_data();
 }
 
-int rtmp_handshake::handle_c0c1() {
+int rtmp_server_handshake::handle_c0c1() {
     const size_t c0_size = 1;
     const size_t c1_size = 1536;
 
@@ -64,7 +65,7 @@ int rtmp_handshake::handle_c0c1() {
     return parse_c0c1(session_->recv_buffer_.data());
 }
 
-int rtmp_handshake::handle_c2() {
+int rtmp_server_handshake::handle_c2() {
     const size_t c2_size = 1536;
 
     if (!session_->recv_buffer_.require(c2_size)) {
@@ -76,7 +77,7 @@ int rtmp_handshake::handle_c2() {
 }
 
 
-int rtmp_handshake::send_s0s1s2() {
+int rtmp_server_handshake::send_s0s1s2() {
     char s0s1s2[3073];
     char* s1_data;
     int s1_len;
@@ -110,4 +111,31 @@ int rtmp_handshake::send_s0s1s2() {
     session_->rtmp_send(s0s1s2, (int)sizeof(s0s1s2));
 
     return RTMP_NEED_READ_MORE;
+}
+
+size_t rtmp_client_handshake::s0s1s2_size = 1536*2+1;
+
+rtmp_client_handshake::rtmp_client_handshake(rtmp_client_session* session):session_(session)
+{
+
+}
+
+rtmp_client_handshake::~rtmp_client_handshake()
+{
+
+}
+
+int rtmp_client_handshake::send_c0c1() {
+    int ret;
+    uint8_t* c0c1 = random_;
+    size_t c0c1_len = 1536 + 1;
+
+    c0c1[0] = 3;
+    ret = session_->rtmp_send((char*)c0c1, c0c1_len);
+    if (ret != 0) {
+        log_errorf("send c0c1 error.");
+        return ret;
+    }
+
+    return 0;
 }

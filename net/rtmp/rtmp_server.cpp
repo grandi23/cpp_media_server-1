@@ -26,7 +26,7 @@ void rtmp_server::on_accept(int ret_code, boost::asio::ip::tcp::socket socket) {
         std::string key;
         make_endpoint_string(socket.remote_endpoint(), key);
         log_infof("tcp accept key:%s", key.c_str());
-        std::shared_ptr<rtmp_session> session_ptr = std::make_shared<rtmp_session>(std::move(socket), this, key);
+        std::shared_ptr<rtmp_server_session> session_ptr = std::make_shared<rtmp_server_session>(std::move(socket), this, key);
         session_ptr_map_.insert(std::make_pair(key, session_ptr));
     }
     server_->accept();
@@ -37,10 +37,10 @@ void rtmp_server::on_timer() {
 }
 
 void rtmp_server::on_check_alive() {
-    std::vector<std::shared_ptr<rtmp_session>> session_vec;
+    std::vector<std::shared_ptr<rtmp_server_session>> session_vec;
 
     for (auto item : session_ptr_map_) {
-        std::shared_ptr<rtmp_session> session_ptr = item.second;
+        std::shared_ptr<rtmp_server_session> session_ptr = item.second;
         if (!session_ptr->is_alive()) {
             session_vec.push_back(session_ptr);
         }

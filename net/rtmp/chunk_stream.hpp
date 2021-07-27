@@ -11,11 +11,11 @@ typedef enum {
     CHUNK_STREAM_PHASE_PAYLOAD
 } CHUNK_STREAM_PHASE;
 
-class rtmp_session;
+class rtmp_session_base;
 class chunk_stream
 {
 public:
-    chunk_stream(rtmp_session* session, uint8_t fmt, uint16_t csid, uint32_t chunk_size);
+    chunk_stream(rtmp_session_base* session, uint8_t fmt, uint16_t csid, uint32_t chunk_size);
     ~chunk_stream();
 
 public:
@@ -25,6 +25,7 @@ public:
 
     void dump_header();
     void dump_payload();
+    void dump_alldata();
 
     int gen_control_message(RTMP_CONTROL_TYPE ctrl_type, uint32_t size, uint32_t value);
     int gen_set_recorded_message();
@@ -52,7 +53,7 @@ public:
     std::shared_ptr<data_buffer> chunk_data_ptr_;
 
 private:
-    rtmp_session* session_ = nullptr;
+    rtmp_session_base* session_ = nullptr;
     bool ext_ts_flag_ = false;
     uint8_t fmt_      = 0;
     uint16_t csid_    = 0;
@@ -63,12 +64,12 @@ private:
 
 using CHUNK_STREAM_PTR = std::shared_ptr<chunk_stream>;
 
-int write_data_by_chunk_stream(rtmp_session* session, uint16_t csid,
+int write_data_by_chunk_stream(rtmp_session_base* session, uint16_t csid,
                     uint32_t timestamp, uint8_t type_id,
                     uint32_t msg_stream_id, uint32_t chunk_size,
                     std::shared_ptr<data_buffer> input_buffer);
 
-int write_data_by_chunk_stream(rtmp_session* session, uint16_t csid,
+int write_data_by_chunk_stream(rtmp_session_base* session, uint16_t csid,
                     uint32_t timestamp, uint8_t type_id,
                     uint32_t msg_stream_id, uint32_t chunk_size,
                     data_buffer& input_buffer);
