@@ -893,12 +893,12 @@ private:
     char s1_digest_data_[32];
 };
 
-class rtmp_session;
-class rtmp_handshake
+class rtmp_server_session;
+class rtmp_server_handshake
 {
 public:
-    rtmp_handshake(rtmp_session* session);
-    ~rtmp_handshake();
+    rtmp_server_handshake(rtmp_server_session* session);
+    ~rtmp_server_handshake();
 
 public:
     int handle_c0c1();
@@ -918,7 +918,23 @@ private:
     c2s2_handle c2s2_;
     char s1_body_[1536];
     char s2_body_[1536];
-    rtmp_session* session_ = nullptr;
+    rtmp_server_session* session_ = nullptr;
 };
 
+class rtmp_client_session;
+class rtmp_client_handshake
+{
+public:
+    rtmp_client_handshake(rtmp_client_session* session);
+    ~rtmp_client_handshake();
+
+    int send_c0c1();
+
+public:
+    static size_t s0s1s2_size;
+
+private:
+    rtmp_client_session* session_;
+    uint8_t random_[(1 + 1536*2) * 2];//c0c1c2
+};
 #endif //RTMP_HANDSHAKE_HPP

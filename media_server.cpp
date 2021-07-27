@@ -5,8 +5,6 @@
 #include <stdint.h>
 #include <stddef.h>
 
-uint32_t g_config_chunk_size = 4096;
-
 int main(int argn, char** argv) {
     const uint16_t rtmp_def_port = 1935;
     const uint16_t ws_def_port = 1900;

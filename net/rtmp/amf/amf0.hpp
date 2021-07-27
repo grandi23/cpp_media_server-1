@@ -297,7 +297,7 @@ public:
             }
         }
         std::string end_str;
-        AMF_Encoder::encode(end_str, buffer);
+        AMF_Encoder::encode(end_str, buffer, true);
         uint8_t end = AMF_DATA_TYPE_OBJECT_END;
         buffer.append_data((char*)&end, 1);
         return RTMP_OK;

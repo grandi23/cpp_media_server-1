@@ -1,13 +1,16 @@
 #include "chunk_stream.hpp"
-#include "rtmp_session.hpp"
+#include "rtmp_session_base.hpp"
+#include "rtmp_server_session.hpp"
+#include "rtmp_client_session.hpp"
 #include "rtmp_pub.hpp"
+#include "logger.hpp"
 
 static const int FORMAT0_HEADER_LEN = 11;
 static const int FORMAT1_HEADER_LEN = 7;
 static const int FORMAT2_HEADER_LEN = 3;
 static const int EXT_TS_LEN = 4;
 
-chunk_stream::chunk_stream(rtmp_session* session, uint8_t fmt, uint16_t csid, uint32_t chunk_size) {
+chunk_stream::chunk_stream(rtmp_session_base* session, uint8_t fmt, uint16_t csid, uint32_t chunk_size) {
     session_ = session;
     fmt_     = fmt;
     csid_    = csid;
@@ -368,6 +371,12 @@ void chunk_stream::dump_payload() {
     log_info_data((uint8_t*)chunk_data_ptr_->data(), chunk_data_ptr_->data_len(), desc);
 }
 
+void chunk_stream::dump_alldata() {
+    char desc[128];
+
+    snprintf(desc, sizeof(desc), "chunk stream all data:%lu", chunk_all_ptr_->data_len());
+    log_info_data((uint8_t*)chunk_all_ptr_->data(), chunk_all_ptr_->data_len(), desc);
+}
 
 int chunk_stream::gen_data(uint8_t* data, int len) {
     if (csid_ < 64) {
@@ -429,7 +438,7 @@ void chunk_stream::reset() {
     chunk_data_ptr_->reset();
 }
 
-int write_data_by_chunk_stream(rtmp_session* session, uint16_t csid,
+int write_data_by_chunk_stream(rtmp_session_base* session, uint16_t csid,
                     uint32_t timestamp, uint8_t type_id,
                     uint32_t msg_stream_id, uint32_t chunk_size,
                     data_buffer& input_buffer)
@@ -474,7 +483,7 @@ int write_data_by_chunk_stream(rtmp_session* session, uint16_t csid,
     return RTMP_OK;
 }
 
-int write_data_by_chunk_stream(rtmp_session* session, uint16_t csid,
+int write_data_by_chunk_stream(rtmp_session_base* session, uint16_t csid,
                     uint32_t timestamp, uint8_t type_id,
                     uint32_t msg_stream_id, uint32_t chunk_size,
                     std::shared_ptr<data_buffer> input_buffer_ptr)
@@ -512,6 +521,8 @@ int write_data_by_chunk_stream(rtmp_session* session, uint16_t csid,
         c->msg_stream_id_ = msg_stream_id;
         c->gen_data(p, len);
         
+        //c->dump_header();
+        //c->dump_alldata();
         session->rtmp_send(c->chunk_all_ptr_);
 
         delete c;
