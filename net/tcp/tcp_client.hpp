@@ -126,11 +126,14 @@ private:
             [this](boost::system::error_code ec, size_t written_size) {
                 if (!ec && this->callback_) {
                     int64_t remain = (int64_t)written_size;
+                    //int index = 0;
 
                     while(remain > 0) {
                         auto current = this->send_buffer_queue_.front();
                         int64_t current_len = current->data_len();
 
+                        //log_infof("sender index:%d, current len:%ld, remain:%ld",
+                        //    index++, current_len, remain);
                         if (current_len > remain) {
                             current->consume_data(remain);
                             remain = 0;
