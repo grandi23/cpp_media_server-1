@@ -23,7 +23,6 @@
 
 #include "mpegts_demux.hpp"
 #include "logger.hpp"
-#include <assert.h>
 #include <string.h>
 
 mpegts_demux::mpegts_demux():_data_total(0)
@@ -170,8 +169,15 @@ int mpegts_demux::decode_unit(unsigned char* data_p, av_format_callback* callbac
             _pat._section_number = data_p[pos];
             pos++;
             _pat._last_section_number = data_p[pos];
-            assert(_pat._table_id == 0x00);
-            assert((188 - npos) > (_pat._section_length+3)); // PAT = section_length + 3
+            if (_pat._table_id != 0x00) {
+                log_errorf("pat tableid:0x%02x error, it must be 0x00", _pat._table_id);
+                return -1;
+            }
+            // PAT = section_length + 3
+            if ((188 - npos) <= (_pat._section_length+3)) {
+                log_errorf("pat section length:0x%d error, the left length:%d", _pat._table_id, 188 - npos);
+                return -1;
+            }
             pos++;
             _pat._pid_vec.clear();
             for (;pos+4 <= _pat._section_length-5-4+9 + npos;) { // 4:CRC, 5:follow section_length item  rpos + 4(following unit length) section_length + 9(above field and unit_start_first_byte )
@@ -234,7 +240,12 @@ int mpegts_demux::decode_unit(unsigned char* data_p, av_format_callback* callbac
             //reserved 4 bslbf
             _pmt._program_info_length = ((data_p[pos]<<8)|data_p[pos+1])&0x0FFF;//program_info_length 12 uimsbf
             pos += 2;
-            assert(_pmt._table_id==0x02); //  0x02, // TS_program_map_section
+            //  0x02, // TS_program_map_section
+            if (_pmt._table_id != 0x02) {
+                log_errorf("pmt tableid(0x%02x) error, it must be 0x02", _pmt._table_id);
+                return -1;
+            }
+
             memcpy(_pmt._dscr, data_p+pos, _pmt._program_info_length);
 //               for (i = 0; i < N; i++) {
 //                   descriptor()
@@ -291,8 +302,8 @@ int mpegts_demux::decode_unit(unsigned char* data_p, av_format_callback* callbac
                         on_callback(callback, _last_pid, _last_dts, _last_pts);
 
                         int ret = pes_parse(data_p+npos, npos, &ret_data_p, ret_size, dts, pts);
-                        assert(ret <= 188);
                         if (ret > 188) {
+                            log_errorf("pes length(%d) error", ret);
                             return -1;
                         }
 
@@ -414,8 +425,9 @@ int mpegts_demux::pes_parse(unsigned char* p, size_t npos,
     if (0x00000001 != packet_start_code_prefix) {
         log_errorf("packet_start_code_prefix:0x%08x error, and streamid:%d, pes packet length:%d",
             packet_start_code_prefix, stream_id, PES_packet_length);
+        return 255;
     }
-    assert(0x00000001 == packet_start_code_prefix);
+
     if (stream_id != 188//program_stream_map 1011 1100
         && stream_id != 190//padding_stream 1011 1110
         && stream_id != 191//private_stream_2 1011 1111
@@ -426,7 +438,10 @@ int mpegts_demux::pes_parse(unsigned char* p, size_t npos,
         && stream_id != 248//ITU-T Rec. H.222.1 type E stream 1111 1000
         ) 
     {
-        assert(0x80 == (p[pos] & 0xc0));
+        if (0x80 != (p[pos] & 0xc0)) {
+            log_errorf("the first 2 bits:0x%02x error, it must be 0x80.", (p[pos] & 0xc0));
+            return 255;
+        }
         //skip 2bits//'10' 2 bslbf
         int PES_scrambling_control = (p[pos]&30)>>4; //PES_scrambling_control 2 bslbf
         (void)PES_scrambling_control;
