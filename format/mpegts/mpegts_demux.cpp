@@ -22,6 +22,7 @@
  */
 
 #include "mpegts_demux.hpp"
+#include "logger.hpp"
 #include <assert.h>
 #include <string.h>
 
@@ -58,10 +59,10 @@ int mpegts_demux::decode_unit(unsigned char* data_p, av_format_callback* callbac
     pos++;
     npos = pos;
 
-    //printf("ts header(0x%02x) payload_unit_start_indicator:%d, pid:%d, adaptation_field_control:%d, pos:%d\r\n", 
+    //log_infof("ts header(0x%02x) payload_unit_start_indicator:%d, pid:%d, adaptation_field_control:%d, pos:%d, data[%d]:%d\r\n", 
     //    ts_header_info._sync_byte,
     //    ts_header_info._payload_unit_start_indicator, ts_header_info._PID,
-    //    ts_header_info._adaptation_field_control, pos);
+    //    ts_header_info._adaptation_field_control, pos, pos, data_p[pos]);
 
     adaptation_field* field_p = &(ts_header_info._adaptation_field_info);
     // adaptation field
@@ -142,6 +143,7 @@ int mpegts_demux::decode_unit(unsigned char* data_p, av_format_callback* callbac
             }
         }
         npos += sizeof(field_p->_adaptation_field_length) + field_p->_adaptation_field_length;
+        pos = npos;
     }
 
     if(ts_header_info._adaptation_field_control == 1 
@@ -409,6 +411,10 @@ int mpegts_demux::pes_parse(unsigned char* p, size_t npos,
     pos += 2;
     //printf("pes parse packet_start_code_prefix:%d, npos:%lu, PES_packet_length:%d, stream_id:%d.\r\n", 
     //    packet_start_code_prefix, npos, PES_packet_length, stream_id);
+    if (0x00000001 != packet_start_code_prefix) {
+        log_errorf("packet_start_code_prefix:0x%08x error, and streamid:%d, pes packet length:%d",
+            packet_start_code_prefix, stream_id, PES_packet_length);
+    }
     assert(0x00000001 == packet_start_code_prefix);
     if (stream_id != 188//program_stream_map 1011 1100
         && stream_id != 190//padding_stream 1011 1110
